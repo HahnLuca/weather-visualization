@@ -15,7 +15,7 @@ Im Folgenden werden Änderungen zwischen den einzelnen Versionen dokumentiert.
   * Benutzerverwaltung in Datenbank
   * Passwörter werden gehashed und nicht als Klartext gespeichert
 * Anlegen neuer Wetterstationen
-  * Üperprüfung, ob Änderungen keine Konflikte auslösen
+  * Überprüfung, ob Änderungen keine Konflikte auslösen
   * Automatische Generation neuer stationsspezifischer Tabelle in Datenbank
   * Aktualisieren der MQTT Abonnements
     
