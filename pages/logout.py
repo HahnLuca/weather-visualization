@@ -15,11 +15,10 @@ dash.register_page(__name__, title="Logout", name="Logout")
 
 # Logout page layout -------------------------------------------------------------------------------------------------
 def layout():
-    # Logout user
+    # Logout user if logged in
     if current_user.is_authenticated:
         logout_user()
         msg_logout = "Sie wurden erfolgreich ausgelogt."
-    # Cover user entering the page while already beeing logged out
     else:
         msg_logout = "Es ist kein Logout erforderlich, da Sie nicht angemeldet sind."
 
@@ -31,8 +30,10 @@ def layout():
             dcc.Interval(id="redirect_logout", interval=1 * 1000, n_intervals=0)
         ])
     ])
+# End layout --------------------------------------------------------------------------------------------------------
 
 
+# Page callbacks ----------------------------------------------------------------------------------------------------
 # Redirect to dashboard after logout ---------------------------------------------------------------------------------
 @callback(
     Output("msg_redirect_logout", "children"),

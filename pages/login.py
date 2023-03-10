@@ -6,22 +6,23 @@
 # Login page
 
 import dash
-from dash import html, dcc, callback, Input, Output
+from dash import html, dcc, callback, Input, Output, State
 import dash_bootstrap_components as dbc
-from flask_login import current_user
+from flask_login import current_user, login_user
+from database import User
 
 dash.register_page(__name__, title="Login", name="Login")
 
 
 # Login page layout --------------------------------------------------------------------------------------------------
 def layout():
-    # Cover user entering the page while already beeing logged in
+    # Redirect user if already logged in
     if current_user.is_authenticated:
         login_window = dbc.Row([
             dbc.Col([html.H5("Sie sind bereits eingelogt.")]),
             dcc.Interval(id="redirect_login", disabled=False, interval=1 * 1000, n_intervals=0)
         ])
-    # User login window
+    # Show user login window
     else:
         login_window = dbc.Row([
             dbc.Col([html.H5("Bitte Anmeldedaten eingeben:")]),
@@ -44,6 +45,36 @@ def layout():
             dcc.Location(id="url_login")
         ])
     ])
+# End layout --------------------------------------------------------------------------------------------------------
+
+
+# Page callbacks ----------------------------------------------------------------------------------------------------
+# Handle login tries and change input box colors --------------------------------------------------------------------
+@callback(
+    Output("input_user", "valid"),
+    Output("input_user", "invalid"),
+    Output("input_pw", "valid"),
+    Output("input_pw", "invalid"),
+    Output("msg_login", "children"),
+    Output("redirect_login", "disabled"),
+    Input("button_login", "n_clicks"),
+    State("input_user", "value"),
+    State("input_pw", "value"),
+    prevent_initial_call=True)
+def verify_login_try(n, username, pw):
+    # Get user from database if user exists
+    user = User.query.filter_by(username=username).first()
+    if user:
+        if pw is not None:
+            if user.check_pw(pw):
+                login_user(user)
+                # Change colors of input boxes, display message and start redirection timer
+                return True, False, True, False, "Login erfolgreich", False
+
+        return True, False, False, True, "Falsches Passwort", True
+
+    else:
+        return False, True, False, False, "Falscher Benutzername", True
 
 
 # Redirect to configurations page after login ------------------------------------------------------------------------
@@ -52,7 +83,7 @@ def layout():
     Output("url_login", "pathname"),
     Input("redirect_login", "n_intervals"),
     prevent_initial_call=True)
-def update_loginout_button(n):
+def handle_redirect(n):
     if n < 3:
         return f"Automatische Weiterleitung in {3 - n} Sekunden.", dash.no_update
     else:

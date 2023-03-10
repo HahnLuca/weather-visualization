@@ -10,31 +10,33 @@ from dash import Dash, html, dcc, Input, Output, State
 import dash_bootstrap_components as dbc
 import os
 from flask import Flask
-from flask_login import login_user, LoginManager, UserMixin, current_user
+from flask_login import LoginManager, current_user
+from database import User, db, db_url
+from mqtt_handler import mqtt_client
 
+
+# Configure the Dash server
 server = Flask(__name__)
 app = Dash(__name__, server=server, use_pages=True, suppress_callback_exceptions=True,
            external_stylesheets=[dbc.themes.SANDSTONE, dbc.icons.BOOTSTRAP])
-user_pw_combo = {"student": "student"}
-server.config.update(SECRET_KEY=os.urandom(12))
+server.config.update(
+    # Secret key necessary to handle user sessions
+    SECRET_KEY=os.urandom(12),
+    SQLALCHEMY_DATABASE_URI=db_url,
+    SQLALCHEMY_TRACK_MODIFICATIONS=False
+)
+db.init_app(server)
 
+# Configure the LoginManager
 login_manager = LoginManager()
 login_manager.init_app(server)
 login_manager.login_view = "/login"
 
 
-class User(UserMixin):
-    def __init__(self, username):
-        self.id = username
-
-
+# Callback for reloading the user when refreshing the page
 @login_manager.user_loader
-def load_user(username):
-    """This function loads the user by user id. Typically this looks up the user from a user database.
-    We won't be registering or looking up users in this example, since we'll just login using LDAP server.
-    So we'll simply return a User object with the passed in username.
-    """
-    return User(username)
+def load_user(user_id):
+    return db.session.get(User, int(user_id))
 
 
 # General layout ----------------------------------------------------------------------------------------------------
@@ -75,8 +77,6 @@ app.layout = dbc.Container([
     dash.page_container,
     dcc.Location(id="url")
 ])
-
-
 # End general layout ------------------------------------------------------------------------------------------------
 
 
@@ -103,32 +103,10 @@ def update_loginout_button(path):
         return "Logout", "logout"
     else:
         return "Login", "login"
-
-
-# Handle login tries ------------------------------------------------------------------------------------------------
-@app.callback(
-    Output("input_user", "valid"),
-    Output("input_user", "invalid"),
-    Output("input_pw", "valid"),
-    Output("input_pw", "invalid"),
-    Output("msg_login", "children"),
-    Output("redirect_login", "disabled"),
-    Input("button_login", "n_clicks"),
-    State("input_user", "value"),
-    State("input_pw", "value"),
-    prevent_initial_call=True)
-def verify_login_try(n, user, pw):
-    if user_pw_combo.get(user) is None:
-        return False, True, False, False, "Falscher Benutzername", True
-    elif user_pw_combo.get(user) == pw:
-        login_user(User(user))
-        return True, False, True, False, "Login erfolgreich", False
-    else:
-        return True, False, False, True, "Falsches Passwort", True
-
-
 # End general callbacks ---------------------------------------------------------------------------------------------
 
 
 if __name__ == '__main__':
+    mqtt_client.loop_start()
+    # TODO set debug=False when app is finished
     app.run_server(debug=True)

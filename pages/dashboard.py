@@ -6,17 +6,16 @@
 # Main dashboard page (layout & callbacks)
 
 import dash
-from dash import html, dcc, callback, Input, Output
+from dash import html, dcc, callback, Input, Output, State
 import dash_bootstrap_components as dbc
 import plotly.express as px
 import plotly.graph_objects as go
 from plotly.subplots import make_subplots
 import pandas as pd
-from utils import connect_to_db
+from database import table_stations, engine
 import config
 
 dash.register_page(__name__, path="/", title="Dashboard", name="Dashboard")
-engine = connect_to_db(config.sql)
 
 
 # Page layout -------------------------------------------------------------------------------------------------------
@@ -66,31 +65,12 @@ part_current_data = dbc.Card([
 ], color="white", outline=True)
 
 # Map with weather stations -----------------------------------------------------------------------------------------
-fig_map = px.scatter_mapbox(
-    data_frame=config.stations,
-    lat="latitude", lon="longitude",
-    hover_name="name", hover_data={"latitude": False, "longitude": False},
-    center={"lat": 49.4915, "lon": 8.5055}, zoom=13, height=500,
-    mapbox_style="open-street-map",
-)
-fig_map.update_traces(
-    mode="markers",
-    text="name",
-    marker={"size": 10, "color": "purple"},
-    selected_marker_size=30,
-    customdata=config.stations["name"]
-)
-fig_map.update_layout(
-    margin={"l": 0, "r": 0, "t": 0, "b": 0},
-    clickmode="event+select",
-    hovermode="closest",
-    hoverdistance=2,
-)
-
 part_map = dbc.Row([
     dbc.Col([
         html.H5("Positionen der Wetterstationen auf dem BUGA-Gelände"),
-        dcc.Graph(id="map", figure=fig_map, config={"displayModeBar": False})
+        dcc.Graph(id="map", config={"displayModeBar": False}),
+        # Dummy input for map callback, callback is meant to be triggerd mainly on page refreshing
+        dcc.Interval(id="map_update", interval=60 * 60 * 1000, n_intervals=0)
     ])
 ])
 
@@ -138,7 +118,7 @@ layout = dbc.Row([
         ])
     ]),
     dcc.Store(id="dataframe"),
-    dcc.Interval(id="dataframe-update", interval=10 * 1000, n_intervals=0)
+    dcc.Interval(id="dataframe_update", interval=10 * 1000, n_intervals=0)
 ])
 
 # End page layout ---------------------------------------------------------------------------------------------------
@@ -150,21 +130,26 @@ layout = dbc.Row([
     Output("station_name", "children"),
     Output("station_updated", "children"),
     Output("dataframe", "data"),
-    Input("dataframe-update", "n_intervals"),
-    Input("map", "clickData"))
-def update_dataframe(n, station_clicked):
-    # Make sure a station is selected when loading the page
-    if station_clicked is None:
-        station = config.stations["name"].iat[0]
-    else:
-        # Access the name of the station in the clickData attribute
-        station = station_clicked["points"][0]["customdata"]
-
-    # Load data into dataframe from choosen station/period
+    Input("dataframe_update", "n_intervals"),
+    Input("map", "clickData"),
+    State("dataframe", "data"))
+def update_dataframe(n, station_clicked, json_old):
     with engine.connect() as con:
-        df = pd.read_sql_table(station, con=con)
+        # Make sure a station is selected when loading the page
+        if station_clicked is None:
+            first_station = pd.read_sql_table("wetterstationen", con).iloc[0]
+            station_name = first_station["name"]
+            station_table = first_station["sql_table"]
+        else:
+            # Access name and corresponding sql table of the station in the clickData attribute
+            station_name = station_clicked["points"][0]["customdata"][0]
+            station_table = station_clicked["points"][0]["customdata"][1]
+
+        # Load data into dataframe from choosen station/period
+        df = pd.read_sql_table(station_table, con=con)
+
     return [
-        f"Aktuelle Werte von: {station}",
+        f"Aktuelle Werte von: {station_name}",
         f"zuletzt aktualisiert: {df['datetime'].iat[-1]}",
         df.to_json(date_format="iso", orient="split")
     ]
@@ -191,6 +176,38 @@ def update_cards(df_json):
     ]
 
 
+# Update map --------------------------------------------------------------------------------------------------------
+@callback(
+    Output("map", "figure"),
+    Input("map_update", "n_intervals"))
+def update_map(n):
+    with engine.connect() as con:
+        df_stations = pd.read_sql_table(table_stations, con)
+
+    fig_map = px.scatter_mapbox(
+        data_frame=df_stations,
+        lat="latitude", lon="longitude",
+        hover_name="name", hover_data={"latitude": False, "longitude": False},
+        # center={"lat": 49.4915, "lon": 8.5055},
+        zoom=13, height=500,
+        mapbox_style="open-street-map",
+    )
+    fig_map.update_traces(
+        mode="markers",
+        text="name",
+        marker={"size": 10, "color": "purple"},
+        selected_marker_size=30,
+        customdata=df_stations[["name", "sql_table"]]
+    )
+    fig_map.update_layout(
+        margin={"l": 0, "r": 0, "t": 0, "b": 0},
+        clickmode="event+select",
+        hovermode="closest",
+        hoverdistance=2,
+    )
+    return fig_map
+
+
 # Update graph ------------------------------------------------------------------------------------------------------
 @callback(
     Output("graph", "figure"),
@@ -198,12 +215,12 @@ def update_cards(df_json):
 def update_line_chart(df_json):
     # Load data and save daily min, mean and max values in separate dataframe
     df = pd.read_json(df_json, orient="split").set_index("datetime")
-    df_daily = pd.DataFrame()
-    for column in df.columns[1:-1]:
-        df_daily[f"{column}_min"] = df[f"{column}"].resample("D").min()
-        df_daily[f"{column}_mean"] = df[f"{column}"].resample("D").mean()
-        df_daily[f"{column}_max"] = df[f"{column}"].resample("D").max()
-    df_daily.reset_index(inplace=True)
+    # df_daily = pd.DataFrame()
+    # for column in df.columns[1:-1]:
+    #     df_daily[f"{column}_min"] = df[f"{column}"].resample("D").min()
+    #     df_daily[f"{column}_mean"] = df[f"{column}"].resample("D").mean()
+    #     df_daily[f"{column}_max"] = df[f"{column}"].resample("D").max()
+    # df_daily.reset_index(inplace=True)
     df.reset_index(inplace=True)
 
     # Create line chart
