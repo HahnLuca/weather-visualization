@@ -5,7 +5,7 @@
 ## Versionsdokumentation
 Im Folgenden werden Änderungen zwischen den einzelnen Versionen dokumentiert.
 
-### Version 0.1 - Erster Upload (10.03.2023)
+### Version 0.1.0 - Erster Upload (10.03.2023)
 * Speicherung aller über MQTT empfangenen Nachrichten in stationsspezifischen Tabellen (MySQL)
 * Erste Version Dashboard
 * Zugriffsbeschränkte "Konfigurieren" Seite
