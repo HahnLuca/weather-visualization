@@ -9,21 +9,19 @@ from sqlalchemy import URL, create_engine, MetaData, exc, text
 from flask_sqlalchemy import SQLAlchemy
 from flask_login import UserMixin
 from werkzeug.security import generate_password_hash, check_password_hash
-
-# Name of table in database storing all the weather stations
-table_stations = "wetterstationen"
+from config import sql
 
 # Connect to database and test connection ----------------------------------------------------------------------------
-db_url = URL.create(drivername="mysql", username="student", password="student",
-                    host="localhost", database="wetterstationen")
+db_url = URL.create(drivername=sql["drivername"], username=sql["username"], password=sql["password"],
+                    host=sql["host"], database=sql["database"])
 engine = create_engine(db_url)
 meta = MetaData()
 try:
     with engine.connect() as con:
         con.execute(text("select 1"))
-    print("Successfully connected to MySQL database")
+    print("Successfully connected to database")
 except exc.SQLAlchemyError as err:
-    print(f"An error occured while trying to connect to MySQL database:\n{err.__cause__}")
+    print(f"An error occured while trying to connect to database:\n{err.__cause__}")
 
 
 # Define class for user management in database -----------------------------------------------------------------------

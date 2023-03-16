@@ -56,7 +56,7 @@ app.layout = dbc.Container([
                     ),
                 ]),
                 dbc.Col([
-                    dbc.NavbarBrand("Wetter auf der BUGA 2023"),
+                    dbc.NavbarBrand("Visualisierung Umweltmessdaten"),
                 ])
             ]),
             dbc.NavbarToggler(id="navbar_toggler"),

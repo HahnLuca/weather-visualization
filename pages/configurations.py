@@ -6,13 +6,14 @@
 # Restricted settings page
 
 import dash
-from dash import html, callback, Input, Output, State, dash_table, ctx
+from dash import html, callback, Input, Output, State, dash_table, ctx, no_update
 import dash_bootstrap_components as dbc
 from flask_login import current_user
 import pandas as pd
 from sqlalchemy import text, inspect, Table, Column, Integer, Float, String, DateTime, exc
 from database import engine, meta, User, db
 from mqtt_handler import mqtt_client
+from config import table_stations
 
 dash.register_page(__name__, title="Konfigurieren", name="Konfigurieren")
 
@@ -33,9 +34,10 @@ def layout():
                 dbc.Col([
                     html.H5("Wetterstationen konfigurieren:", className="mb-2"),
                     dash_table.DataTable(id="table", editable=True, sort_action="native", sort_mode="single",
-                                         row_deletable=True, page_action="native", page_current=0, page_size=10),
+                                         row_deletable=True, page_action="native", page_current=0, page_size=10,
+                                         style_table={"overflowX": "scroll"}),
                     html.Div([
-                        dbc.Button("Wetterstation anlegen", id="table_new_station", type="submit", className="mt-2 me-2"),
+                        dbc.Button("Wetterstation anlegen", id="table_new", type="submit", className="mt-2 me-2"),
                         dbc.Button("Änderungen verwerfen", id="table_reset", type="reset", className="mt-2 me-2"),
                         dbc.Button("Änderungen übernehmen", id="table_confirm", type="submit", className="mt-2 me-2"),
                     ], className="d-grid d-md-flex justify-content-md-end"),
@@ -56,82 +58,77 @@ def layout():
                 dbc.Col([html.Div(id="new_user_msg", className="mt-2")])
             ], className="mt-4")
         ])
+
 # End page layout ---------------------------------------------------------------------------------------------------
 
 
 # Page callbacks ----------------------------------------------------------------------------------------------------
-# Load the DataTable or add a new line depending on which button has been pressed -----------------------------------
+# Handle button inputs to update DataTable or save DataTable to database --------------------------------------------
 @callback(
     Output("table", "data"),
     Output("table", "columns"),
-    Input("table_new_station", "n_clicks"),
+    Output("table_msg", "children"),
+    Input("table_new", "n_clicks"),
     Input("table_reset", "n_clicks"),
+    Input("table_confirm", "n_clicks"),
     State("table", "data"),
     State("table", "columns"))
-def update_datatable(n_new_station, n_reset, rows, columns):
+def update_datatable(n_new_station, n_reset, n_confirm, rows, columns):
+    # Confirm button pressed
+    if "table_confirm" == ctx.triggered_id:
+        df_stations = pd.DataFrame(rows)
+        with engine.connect() as con:
+            # Try saving DataTable to an empty copy of the MySQL table to check if DataTable is valid
+            con.execute(text(f"CREATE TABLE {table_stations}_temp LIKE {table_stations}"))
+            try:
+                df_stations.to_sql(name=f"{table_stations}_temp", con=engine, if_exists="append", index=False)
+                con.execute(text(f"DROP TABLE {table_stations}_temp"))
+                # If check was succesful truncate original table and save new DataTable
+                con.execute(text(f"TRUNCATE TABLE {table_stations}"))
+                df_stations.to_sql(name=f"{table_stations}", con=engine, if_exists="append", index=False)
+            except exc.SQLAlchemyError:
+                # If check failed drop temporary table and end function
+                con.execute(text(f"DROP TABLE {table_stations}_temp"))
+                return no_update, no_update, "Fehlerhafte Eingabe, Tabelle konnte nicht übernommen werden!"
+
+        # Create a new table in database for every added station
+        # TODO implement general data format
+        for station_id in df_stations["ID"]:
+            sql_table = "station" + str(station_id)
+            if not inspect(engine).has_table(sql_table):
+                Table(
+                    sql_table, meta,
+                    Column("id", Integer, primary_key=True, autoincrement=True),
+                    Column("timestamp", DateTime),
+                    Column("temperature", Float),
+                    Column("humidity", Float),
+                    Column("rain", Float),
+                    Column("windspeed", Float),
+                    Column("winddirection", Float),
+                    Column("rssi", Float),
+                )
+        meta.create_all(engine)
+
+        # Update MQTT subscriptions
+        mqtt_client.unsubscribe("#")
+        topics = [("station"+str(station_id), 0) for station_id in df_stations["ID"]]
+        mqtt_client.subscribe(topics)
+
+        return no_update, no_update, "Änderungen in Datenbank übernommen."
+
     # "New station" button pressed
-    if "table_new_station" == ctx.triggered_id:
+    elif "table_new" == ctx.triggered_id:
         rows.append({c["id"]: "" for c in columns})
+        return rows, no_update, ""
 
     # "Discard changes" button pressed or initial callback
     else:
         # Read last saved data from database
         with engine.connect() as con:
-            df = pd.read_sql_table("wetterstationen", con=con, index_col="id")
+            df = pd.read_sql_table(table_stations, con=con)
         rows = df.to_dict("records")
         columns = [{"name": i, "id": i} for i in df.columns]
-
-    # TODO delete old messages from Confirm button
-    return rows, columns
-
-
-# Save changes made in the DataTable to the database ---------------------------------------------------------------
-@callback(
-    Output("table_msg", "children"),
-    Input("table_confirm", "n_clicks"),
-    State("table", "data"),
-    prevent_initial_call=True)
-def update_database(n_confirm, rows):
-    df_stations = pd.DataFrame(rows)
-    with engine.connect() as con:
-        # Try saving DataTable to an empty copy of the MySQL table to check if DataTable is valid
-        con.execute(text("CREATE TABLE wetterstationen_temp LIKE wetterstationen"))
-        try:
-            df_stations.to_sql(name="wetterstationen_temp", con=engine, if_exists="append", index=False)
-            con.execute(text("DROP TABLE wetterstationen_temp"))
-            # If check was succesful truncate original table and save new DataTable
-            con.execute(text("TRUNCATE TABLE wetterstationen"))
-            df_stations.to_sql(name="wetterstationen", con=engine, if_exists="append", index=False)
-        except exc.SQLAlchemyError:
-            # If check failed drop temporary table and end function
-            con.execute(text("DROP TABLE wetterstationen_temp"))
-            return "Fehlerhafte Eingabe, Tabelle konnte nicht übernommen werden!"
-
-    # Create a new table in database for every added station
-    # TODO implement general data format
-    for station in df_stations["sql_table"]:
-        if not inspect(engine).has_table(station):
-            Table(
-                station, meta,
-                Column("data_id", Integer, primary_key=True),
-                Column("datetime", DateTime),
-                Column("devicename", String(50)),
-                Column("timestamp", DateTime),
-                Column("temperature", Float),
-                Column("humidity", Float),
-                Column("rain", Float),
-                Column("winddirection", Float),
-                Column("windspeed", Float),
-                Column("rssi", Float),
-            )
-    meta.create_all(engine)
-
-    # Update MQTT subscriptions
-    mqtt_client.unsubscribe("#")
-    topics = [(topic, 0) for topic in df_stations["mqtt_topic"]]
-    mqtt_client.subscribe(topics)
-
-    return "Änderungen in Datenbank übernommen."
+        return rows, columns, ""
 
 
 # Add new user to database ------------------------------------------------------------------------------------------
