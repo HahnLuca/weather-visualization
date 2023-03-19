@@ -18,7 +18,6 @@ In den nachfolgenden Abschnitten wird in Kürze erläutert wie die Software unte
 
 ### MySQL Download und Setup
 
-Nachfolgend wird die Installation unter Windows beschrieben.
 Im MySQL Installer können größtenteils die Default-Einstellungen verwendet werden.
 
 1. Laden Sie den ersten MySQL Community Installer über den folgenden Link herunter:
