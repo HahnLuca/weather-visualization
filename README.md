@@ -9,8 +9,8 @@ In den nachfolgenden Abschnitten wird in Kürze erläutert wie die Software unte
 ### Erforderliche Software
 
 1. Installieren Sie die neueste Version von Python 3 über den folgenden Link:
-   https://www.python.org/downloads/. Wählen Sie hierbei die Checkbox **Add Python 3.x to PATH** aus
-2. Laden und entpacken Sie das Projekt aus GitHub über den folgenden Link:
+   https://www.python.org/downloads/. Wählen Sie hierbei die Checkbox **Add python.exe to PATH** aus
+2. Laden Sie das Projekt als ZIP Ordner aus GitHub über den folgenden Link herunter und entpacken Sie es:
    https://github.com/HahnLuca/weather-visualization  
 
     ![project download](project_download.png)  
@@ -30,7 +30,7 @@ Im MySQL Installer können größtenteils die Default-Einstellungen verwendet we
 4. Im Abschnitt "Choosing a Setup Type" reicht es "Custom" auszuwählen, da nur der "MySQL Server" und
    die "MySQL Workbench" für die Verwendung der Software notwendig sind.
 5. Daraufhin können die neuesten Versionen des bereits erwähnten "MySQL Servers" und der "MySQL Workbench"
-   unter "Applications" ausgewählt und hinzugefügt werden.  
+   unter "Select Products" ausgewählt und hinzugefügt werden.  
 
     ![mysql products](mysql_products.png)  
 
@@ -42,7 +42,7 @@ Im MySQL Installer können größtenteils die Default-Einstellungen verwendet we
 
 8. In den nächsten Fenstern sind wieder die Default-Einstellungen zu übernehmen.
 9. Im Anschluss an die Installation öffnen Sie die MySQL Workbench.
-10. Hier können Sie über das Plus eine neue "MySQL connection" anlegen 
+10. Hier können Sie über das Plus eine neue "MySQL Connection" anlegen 
     und dabei, den von Ihnen angelegten User verwenden.  
 
     ![mysql connection](mysql_con.png)  

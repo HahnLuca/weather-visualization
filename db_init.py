@@ -104,7 +104,7 @@ if __name__ == "__main__":
         app.mainloop()
         # End user creation -----------------------------------------------------------------------------------------
 
-        print("MySQL database has been initialized successfully")
+        print("MySQL database has successfully been initialized")
 
     except exc.SQLAlchemyError as err:
         print(f"An error occured while trying to initialize MySQL database:\n{err.__cause__}")

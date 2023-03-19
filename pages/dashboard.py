@@ -242,10 +242,13 @@ def update_cards(df_json, station_id):
             last_row = pd.read_sql_query(text(f"SELECT * FROM station{station_id} ORDER BY id DESC LIMIT 1"), con)
             last_row.replace(to_replace=[None], value="N/A", inplace=True)
 
-        return [
-            f"Aktuelle Werte von: {station_name}",
-            f"zuletzt aktualisiert: {last_row['timestamp'].iat[0]}"
-        ] + [f"{last_row[element].iat[0]}{elements[element]['unit']}" for element in elements]
+        if not last_row.empty:
+            return [
+                f"Aktuelle Werte von: {station_name}",
+                f"zuletzt aktualisiert: {last_row['timestamp'].iat[0]}"
+            ] + [f"{last_row[element].iat[0]}{elements[element]['unit']}" for element in elements]
+        else:
+            raise PreventUpdate
     else:
         raise PreventUpdate
 
