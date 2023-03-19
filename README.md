@@ -13,7 +13,7 @@ In den nachfolgenden Abschnitten wird in Kürze erläutert wie die Software unte
 2. Laden und entpacken Sie das Projekt aus GitHub über den folgenden Link:
    https://github.com/HahnLuca/weather-visualization  
 
-    ![project download](project_download.png)  
+    ![project download](installation_img/project_download.png)  
 
 3. Öffnen Sie die Windows-Eingabeaufforderung und navigieren Sie in den soeben heruntergeladenen Ordner.
 4. Um nun alle benötigten Module zu installieren, führen Sie folgenden Befehl aus: 
@@ -32,20 +32,20 @@ Im MySQL Installer können größtenteils die Default-Einstellungen verwendet we
 5. Daraufhin können die neuesten Versionen des bereits erwähnten "MySQL Servers" und der "MySQL Workbench"
    unter "Applications" ausgewählt und hinzugefügt werden.  
 
-    ![mysql products](mysql_products.png)  
+    ![mysql products](installation_img/mysql_products.png)  
 
 6. In den nächsten Fenstern können die Default-Einstellungen übernommen werden.
 7. Bei "Accounts and Roles" muss ein Root Passwort festgelegt werden.
    Außerdem sollte hier ein neuer Benutzer angelegt werden.  
 
-    ![mysql user](mysql_user.png)  
+    ![mysql user](installation_img/mysql_user.png)  
 
 8. In den nächsten Fenstern sind wieder die Default-Einstellungen zu übernehmen.
 9. Im Anschluss an die Installation öffnen Sie die MySQL Workbench.
 10. Hier können Sie über das Plus eine neue "MySQL connection" anlegen 
     und dabei, den von Ihnen angelegten User verwenden.  
 
-    ![mysql connection](mysql_con.png)  
+    ![mysql connection](installation_img/mysql_con.png)  
 
 11. Über die soeben angelegte Verbindung können Sie sich nun mit dem MySQL Server verbinden.
 
