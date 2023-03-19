@@ -10,5 +10,5 @@ paho_mqtt==1.6.1
 pandas==1.5.2
 plotly==5.13.1
 SQLAlchemy==2.0.7
+mysqlclient==2.1.1
 Werkzeug==2.2.3
-~lotly==5.11.0

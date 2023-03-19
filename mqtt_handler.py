@@ -20,8 +20,8 @@ def on_connect(client, userdata, flags, rc):
         with engine.connect() as con:
             df_stations = pd.read_sql_table(table_stations, con)
         # TODO Activate again
-        # topics = [("station" + str(station_id), 0) for station_id in df_stations["ID"]]
-        topics = [("Wetterstation", 0), ("Wetterstation_HSMA", 0)]
+        topics = [("station" + str(station_id), 0) for station_id in df_stations["ID"]]
+        # topics = [("Wetterstation", 0), ("Wetterstation_HSMA", 0)]
         client.subscribe(topics)
         # In debug mode message is printed multiple times
         # TODO Enable line below when debug=False was set in app.run_server()
@@ -59,13 +59,13 @@ def on_message(client, userdata, msg):
 
         # Insert data into the right table depending on the topic
         # TODO Activate again
-        # sql_table = "station" + msg.topic
-        if msg.topic == "Wetterstation":
-            sql_table = "station1000"
-        elif msg.topic == "Wetterstation_HSMA":
-            sql_table = "station2000"
-        else:
-            sql_table = ""
+        sql_table = "station" + msg.topic
+        # if msg.topic == "Wetterstation":
+        #     sql_table = "station1000"
+        # elif msg.topic == "Wetterstation_HSMA":
+        #     sql_table = "station2000"
+        # else:
+        #     sql_table = ""
         try:
             df.to_sql(name=sql_table, con=engine, if_exists="append", index=False)
         except exc.SQLAlchemyError as err:

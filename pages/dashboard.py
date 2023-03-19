@@ -234,17 +234,20 @@ def update_dataframe(n, station_id, sampling, element_types):
     Input("dataframe", "data"),
     State("current_station_id", "data"))
 def update_cards(df_json, station_id):
-    # Get station name and last data from corresponding station id
-    with engine.connect() as con:
-        station_name = pd.read_sql_query(text(f"SELECT Name FROM {table_stations} "
-                                              f"WHERE ID = {station_id}"), con)["Name"].iat[0]
-        last_row = pd.read_sql_query(text(f"SELECT * FROM station{station_id} ORDER BY ID DESC LIMIT 1"), con)
-        last_row.replace(to_replace=[None], value="N/A", inplace=True)
+    if df_json:
+        # Get station name and last data from corresponding station id
+        with engine.connect() as con:
+            station_name = pd.read_sql_query(text(f"SELECT Name FROM {table_stations} "
+                                                  f"WHERE ID = {station_id}"), con)["Name"].iat[0]
+            last_row = pd.read_sql_query(text(f"SELECT * FROM station{station_id} ORDER BY id DESC LIMIT 1"), con)
+            last_row.replace(to_replace=[None], value="N/A", inplace=True)
 
-    return [
-        f"Aktuelle Werte von: {station_name}",
-        f"zuletzt aktualisiert: {last_row['timestamp'].iat[0]}"
-    ] + [f"{last_row[element].iat[0]}{elements[element]['unit']}" for element in elements]
+        return [
+            f"Aktuelle Werte von: {station_name}",
+            f"zuletzt aktualisiert: {last_row['timestamp'].iat[0]}"
+        ] + [f"{last_row[element].iat[0]}{elements[element]['unit']}" for element in elements]
+    else:
+        raise PreventUpdate
 
 
 # Update graph ------------------------------------------------------------------------------------------------------

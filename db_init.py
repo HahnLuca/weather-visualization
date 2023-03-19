@@ -9,7 +9,7 @@ from sqlalchemy import URL, create_engine, MetaData, exc, text, Table, Column, \
     Integer, String, Float, Double, DateTime, Boolean
 from werkzeug.security import generate_password_hash
 import customtkinter as ctk
-from config import sql
+from config import table_stations, sql
 
 
 if __name__ == "__main__":
@@ -38,12 +38,12 @@ if __name__ == "__main__":
 
         # Create necessary tables in database if not exist
         stations = Table(
-            "wetterstationen", meta,
+            f"{table_stations}", meta,
             Column("ID", Integer, primary_key=True),
             Column("Name", String(30), nullable=False, unique=True),
             Column("Breitengrad", Double, nullable=False),
             Column("Längengrad", Double, nullable=False),
-            Column("Hirnung", Float),
+            Column("Hitzewarnung", Float),
             Column("Frostwarnung", Float)
         )
         warnings = Table(
@@ -58,7 +58,7 @@ if __name__ == "__main__":
         user = Table(
             "user", meta,
             Column("id", Integer, primary_key=True, autoincrement=True),
-            Column("user", String(64), nullable=False, unique=True),
+            Column("username", String(64), nullable=False, unique=True),
             Column("pw_hash", String(128), nullable=False),
         )
         meta.create_all(engine)
@@ -67,7 +67,7 @@ if __name__ == "__main__":
         # Insert user to table in database
         def create_user():
             if first_user.get() and first_user_pw.get():
-                user_init = {"user": first_user.get(), "pw_hash": generate_password_hash(first_user_pw.get())}
+                user_init = {"username": first_user.get(), "pw_hash": generate_password_hash(first_user_pw.get())}
                 pd.DataFrame([user_init]).to_sql(name="user", con=engine, if_exists="append", index=False)
                 print(f"The dashboard user {first_user.get()} has been created")
                 app.destroy()
