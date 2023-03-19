@@ -51,7 +51,7 @@ app.layout = dbc.Container([
                             src="assets/HSMA_Logo_weiß.png",
                             height="30px"
                         )],
-                        href="https://www.hs-mannheim.de/",
+                        href="https://www.et.hs-mannheim.de/",
                         target="_blank"
                     ),
                 ]),
