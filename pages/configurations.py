@@ -92,27 +92,29 @@ def update_datatable(n_new_station, n_reset, n_confirm, rows, columns):
                 return no_update, no_update, "Fehlerhafte Eingabe, Tabelle konnte nicht übernommen werden!"
 
         # Create a new table in database for every added station
-        # TODO implement general data format
-        for station_id in df_stations["ID"]:
-            sql_table = "station" + str(station_id)
-            if not inspect(engine).has_table(sql_table):
-                Table(
-                    sql_table, meta,
-                    Column("id", Integer, primary_key=True, autoincrement=True),
-                    Column("timestamp", DateTime),
-                    Column("temperature", Float),
-                    Column("humidity", Float),
-                    Column("rain", Float),
-                    Column("windspeed", Float),
-                    Column("winddirection", Float),
-                    Column("rssi", Float),
-                )
-        meta.create_all(engine)
+        if not df_stations.empty:
+            # TODO implement general data format
+            for station_id in df_stations["ID"]:
+                sql_table = "station" + str(station_id)
+                if not inspect(engine).has_table(sql_table):
+                    Table(
+                        sql_table, meta,
+                        Column("id", Integer, primary_key=True, autoincrement=True),
+                        Column("timestamp", DateTime),
+                        Column("temperature", Float),
+                        Column("humidity", Float),
+                        Column("rain", Float),
+                        Column("windspeed", Float),
+                        Column("winddirection", Float),
+                        Column("rssi", Float),
+                    )
+            meta.create_all(engine)
 
-        # Update MQTT subscriptions
-        mqtt_client.unsubscribe("#")
-        topics = [("station"+str(station_id), 0) for station_id in df_stations["ID"]]
-        mqtt_client.subscribe(topics)
+        # TODO Activate again
+        # # Update MQTT subscriptions
+        # mqtt_client.unsubscribe("#")
+        # topics = [("station"+str(station_id), 0) for station_id in df_stations["ID"]]
+        # mqtt_client.subscribe(topics)
 
         return no_update, no_update, "Änderungen in Datenbank übernommen."
 

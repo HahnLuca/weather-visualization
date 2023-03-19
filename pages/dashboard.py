@@ -11,6 +11,7 @@ from dash import html, dcc, callback, Input, Output, State, ctx
 import dash_bootstrap_components as dbc
 import plotly.express as px
 import plotly.graph_objects as go
+from dash.exceptions import PreventUpdate
 from geopy.distance import great_circle
 from plotly.subplots import make_subplots
 import pandas as pd
@@ -124,38 +125,42 @@ layout = dbc.Row([
 def update_possible_stations(n):
     with engine.connect() as con:
         df_stations = pd.read_sql_table(table_stations, con)
-
     dropdown_options = [
         {"label": station["Name"], "value": station["ID"]} for index, station in df_stations.iterrows()
     ]
 
-    # Calculate distance between minimal and maximal station coordinates and set minimal distance for zoom
-    diff_km = great_circle((df_stations["Breitengrad"].min(), df_stations["Längengrad"].min()),
-                           (df_stations["Breitengrad"].max(), df_stations["Längengrad"].max())).km
-    diff_km = max(diff_km, 5)
-    # Estimate zoom level to fit all points in 350 pixel wide map (map height = 450p, map width varies)
-    # https://docs.mapbox.com/help/glossary/zoom-level/
-    km_per_pixel_at_zoom_0 = 50  # Valid around latitude = 50°
-    zoom = np.log2(km_per_pixel_at_zoom_0 / (diff_km / 350))
+    # Check if any stations are available
+    if dropdown_options:
+        # Calculate distance between minimal and maximal station coordinates and set minimal distance for zoom
+        diff_km = great_circle((df_stations["Breitengrad"].min(), df_stations["Längengrad"].min()),
+                               (df_stations["Breitengrad"].max(), df_stations["Längengrad"].max())).km
+        diff_km = max(diff_km, 5)
+        # Estimate zoom level to fit all points in 350 pixel wide map (map height = 450p, map width varies)
+        # https://docs.mapbox.com/help/glossary/zoom-level/
+        km_per_pixel_at_zoom_0 = 50  # Valid around latitude = 50°
+        zoom = np.log2(km_per_pixel_at_zoom_0 / (diff_km / 350))
 
-    # Create map with selectable stations
-    fig_map = px.scatter_mapbox(
-        data_frame=df_stations, lat="Breitengrad", lon="Längengrad",
-        hover_name="Name", hover_data={"Breitengrad": False, "Längengrad": False},
-        center={"lat": (df_stations["Breitengrad"].max() + df_stations["Breitengrad"].min()) / 2,
-                "lon": (df_stations["Längengrad"].max() + df_stations["Längengrad"].min()) / 2},
-        zoom=zoom, height=450, mapbox_style="open-street-map",
-    )
-    fig_map.update_traces(
-        mode="markers", marker={"size": 10, "color": "purple"},
-        selected_marker={"size": 10, "color": "purple"}, customdata=df_stations["ID"]
-    )
-    fig_map.update_layout(
-        margin={"l": 0, "r": 0, "t": 0, "b": 0}, clickmode="event+select",
-        hovermode="closest", hoverdistance=2,
-    )
+        # Create map with selectable stations
+        fig_map = px.scatter_mapbox(
+            data_frame=df_stations, lat="Breitengrad", lon="Längengrad",
+            hover_name="Name", hover_data={"Breitengrad": False, "Längengrad": False},
+            center={"lat": (df_stations["Breitengrad"].max() + df_stations["Breitengrad"].min()) / 2,
+                    "lon": (df_stations["Längengrad"].max() + df_stations["Längengrad"].min()) / 2},
+            zoom=zoom, height=450, mapbox_style="open-street-map",
+        )
+        fig_map.update_traces(
+            mode="markers", marker={"size": 10, "color": "purple"},
+            selected_marker={"size": 10, "color": "purple"}, customdata=df_stations["ID"]
+        )
+        fig_map.update_layout(
+            margin={"l": 0, "r": 0, "t": 0, "b": 0}, clickmode="event+select",
+            hovermode="closest", hoverdistance=2,
+        )
+        return dropdown_options, fig_map
 
-    return dropdown_options, fig_map
+    # Abort callback if no station available
+    else:
+        raise PreventUpdate
 
 
 # Update current station and dropdown value if selection was made in map --------------------------------------------
@@ -173,7 +178,12 @@ def update_current_station(station_dropdown, station_map):
     # Make sure a station is selected when loading the page
     else:
         with engine.connect() as con:
-            station_id = pd.read_sql_table(table_stations, con)["ID"].iat[0]
+            station_id = pd.read_sql_table(table_stations, con)
+        if not station_id.empty:
+            station_id = station_id["ID"].iat[0]
+        # Abort callback if no station available
+        else:
+            raise PreventUpdate
     return station_id, station_id
 
 
@@ -185,26 +195,30 @@ def update_current_station(station_dropdown, station_map):
     Input("radio_sampling", "value"),
     Input("dropdown_element", "value"))
 def update_dataframe(n, station_id, sampling, element_types):
-    # Load selected elements into dataframe from choosen station
-    with engine.connect() as con:
-        df = pd.read_sql_table("station" + str(station_id), index_col="timestamp",
-                               columns=element_types.split("_"), con=con)
+    if station_id:
+        # Load selected elements into dataframe from choosen station
+        with engine.connect() as con:
+            df = pd.read_sql_table("station" + str(station_id), index_col="timestamp",
+                                   columns=element_types.split("_"), con=con)
 
-    # Dataframe contains all the data from the last month
-    if sampling == "all":
-        df = df.last("31D")
-        df.reset_index(inplace=True)
-        return df.to_json(date_format="iso", orient="split")
+        # Dataframe contains all the data from the last month
+        if sampling == "all":
+            df = df.last("31D")
+            df.reset_index(inplace=True)
+            return df.to_json(date_format="iso", orient="split")
 
-    # Dataframe contains only certain daily values from alltime
+        # Dataframe contains only certain daily values from alltime
+        else:
+            df_daily = pd.DataFrame()
+            for column in df.columns:
+                df_daily[f"{column}_min"] = df[f"{column}"].resample("D").min()
+                df_daily[f"{column}_mean"] = df[f"{column}"].resample("D").mean().round(1)
+                df_daily[f"{column}_max"] = df[f"{column}"].resample("D").max()
+            df_daily.reset_index(inplace=True)
+            return df_daily.to_json(date_format="iso", orient="split")
+    # Abort callback if no station available
     else:
-        df_daily = pd.DataFrame()
-        for column in df.columns:
-            df_daily[f"{column}_min"] = df[f"{column}"].resample("D").min()
-            df_daily[f"{column}_mean"] = df[f"{column}"].resample("D").mean().round(1)
-            df_daily[f"{column}_max"] = df[f"{column}"].resample("D").max()
-        df_daily.reset_index(inplace=True)
-        return df_daily.to_json(date_format="iso", orient="split")
+        raise PreventUpdate
 
 
 # Update the current values in the cards whenever dataframe got updated ---------------------------------------------
@@ -263,8 +277,8 @@ def update_plot(df_json, sampling, elem_type):
                 dict(count=1, label="1M", step="month", stepmode="backward"),
                 dict(count=14, label="2W", step="day", stepmode="backward"),
                 dict(count=7, label="1W", step="day", stepmode="backward"),
-                dict(count=1, label="1D", step="day", stepmode="backward"),
                 dict(count=3, label="3D", step="day", stepmode="backward"),
+                dict(count=1, label="1D", step="day", stepmode="backward"),
                 dict(count=12, label="12H", step="hour", stepmode="backward")
             ]
         )

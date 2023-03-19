@@ -8,25 +8,24 @@
 
 # MQTT configurations
 mqtt = {
-    # "Random" number as client id
-    "client_id": "123456789",
-    "username": "your_mqtt_username",
-    "password": "your_mqtt_password",
-    "host": "1.2.3.4",
+    "client_id": "123456789",  # TODO Choose a random number as client id
+    "username": "your_mqtt_username",  # TODO Enter the username for your MQTT broker
+    "password": "your_mqtt_password",  # TODO Enter the password for your MQTT broker
+    "host": "1.2.3.4",  # TODO Enter your host address
     "port": 1883
 }
 
 # MySQL configurations
 sql = {
     "drivername": "mysql",
-    "username": "your_db_username",
-    "password": "your_db_password",
+    "username": "your_db_username",  # TODO Enter the previously set username for your MySQL server
+    "password": "your_db_password",  # TODO Enter the previously set password for your MySQL server
     "host": "localhost",
-    "database": "your_database_name"
+    "database": "project_weather_dash"
 }
 
 # Name of table in database storing all the weather stations
-table_stations = "wetterstationen"
+table_stations = "weather_stations"
 
 # Element configurations
 elements = {
@@ -43,4 +42,3 @@ elements = {
     "rssi": {"name": "Signalstärke", "unit": "dBm", "range": [-100, 100],
              "color": "olivedrab", "icon": "bi bi-reception-4"},
 }
-
