@@ -73,6 +73,12 @@ Im MySQL Installer können größtenteils die Default-Einstellungen verwendet we
 
 Im Folgenden werden Änderungen zwischen den einzelnen Versionen dokumentiert.
 
+### Version 0.4.0 - 20.03.2023
+
+* Entfernen der grafischen Oberfläche in db_init.py
+* Hitze-/Frostwarnungen werden in Datenbank geloggt und auf dem topic "station_warnings" gepublished
+* Bugfixes
+
 ### Version 0.3.0 - 19.03.2023
 
 * Installationsanleitung und requirements.txt wurden hinzugefügt

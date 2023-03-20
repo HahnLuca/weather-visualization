@@ -110,11 +110,10 @@ def update_datatable(n_new_station, n_reset, n_confirm, rows, columns):
                     )
             meta.create_all(engine)
 
-        # TODO Activate again
         # Update MQTT subscriptions
         mqtt_client.unsubscribe("#")
         if not df_stations.empty:
-            topics = [("station"+str(station_id), 0) for station_id in df_stations["ID"]]
+            topics = [(str(station_id), 0) for station_id in df_stations["ID"]]
             mqtt_client.subscribe(topics)
 
         return no_update, no_update, "Änderungen in Datenbank übernommen."

@@ -2,7 +2,7 @@
 # Name: Luca Hahn
 # Matrikelnr: 1923199
 # Betreuer: Prof. Dr. Christof Hübner
-# --------------------------------------------------------------------------------------------------------------------
+# -------------------------------------------------------------------------------------------------------------------
 # MQTT subscriber with automatic database inserting
 
 from datetime import datetime
@@ -14,17 +14,16 @@ from database import engine, meta
 from config import mqtt, table_stations, elements
 
 
-# MQTT callbacks -----------------------------------------------------------------------------------------------------
+# MQTT callbacks ----------------------------------------------------------------------------------------------------
 def on_connect(client, userdata, flags, rc):
     if rc == 0:
         with engine.connect() as con:
             df_stations = pd.read_sql_table(table_stations, con)
-        # TODO Activate again
-        topics = [("station" + str(station_id), 0) for station_id in df_stations["ID"]]
-        # topics = [("Wetterstation", 0), ("Wetterstation_HSMA", 0)]
-        client.subscribe(topics)
-        # In debug mode message is printed multiple times
+        if not df_stations.empty:
+            topics = [(str(station_id), 0) for station_id in df_stations["ID"]]
+            client.subscribe(topics)
         # TODO Enable line below when debug=False was set in app.run_server()
+        # In debug mode message is printed multiple times
         # print("Successfully connected to MQTT broker")
     else:
         print(f"Failed to connect, return code {rc}")
@@ -58,66 +57,75 @@ def on_message(client, userdata, msg):
         print(df)
 
         # Insert data into the right table depending on the topic
-        # TODO Activate again
         sql_table = "station" + msg.topic
-        # if msg.topic == "Wetterstation":
-        #     sql_table = "station1000"
-        # elif msg.topic == "Wetterstation_HSMA":
-        #     sql_table = "station2000"
-        # else:
-        #     sql_table = ""
         try:
             df.to_sql(name=sql_table, con=engine, if_exists="append", index=False)
         except exc.SQLAlchemyError as err:
             print(f"An error occured while inserting data into {sql_table}:\n{err.__cause__}\n")
 
-        # Trigger a warning if certain temperature limits are exceeded
-        # if "temperature" in df.columns:
-        #     with engine.connect() as con:
-        #         warnings = pd.read_sql_query(text(f"SELECT Hitzewarnung, Frostwarnung FROM {table_stations} "
-        #                                           f"WHERE ID = {1000}"), con)
-        #         active = pd.read_sql_query(text(f"SELECT active FROM warnings "
-        #                                              f"WHERE station = {'1000'} AND warning_type = 'Hitzewarnung' "
-        #                                              f"ORDER BY ID DESC LIMIT 1"), con)
-        #         frost_active = pd.read_sql_query(text(f"SELECT active FROM warnings "
-        #                                               f"WHERE station = {'1000'} AND warning_type = 'Frostwarnung' "
-        #                                               f"ORDER BY ID DESC LIMIT 1"), con)
-        #     print(active)
-            # Log a message if heat warning is coming or going
-            # if ((df["temperature"].iat[0] >= warnings["Hitzewarnung"].iat[0] and not mqtt_client.warning_heat) or
-            #         (df["temperature"].iat[0] < warnings["Hitzewarnung"].iat[0] and mqtt_client.warning_heat)):
-            #     mqtt_client.warning_heat = not mqtt_client.warning_heat
-            #     warning = {
-            #         "timestamp": now,
-            #         "station": "1000",
-            #         "warning_type": 'Hitzewarnung',
-            #         "trigger_temp": warnings['Hitzewarnung'].iat[0],
-            #         "active": mqtt_client.warning_heat
-            #     }
-            #     df_warning = pd.DataFrame([warning])
-            #     df_warning.to_sql(name="warnings", con=engine, if_exists="append", index=False)
-            #
-            # # Log a message if frost warning is coming or going
-            # elif ((df["temperature"].iat[0] <= warnings["Frostwarnung"].iat[0] and not mqtt_client.warning_frost) or
-            #       (df["temperature"].iat[0] > warnings["Frostwarnung"].iat[0] and mqtt_client.warning_frost)):
-            #     mqtt_client.warning_frost = not mqtt_client.warning_frost
-            #     warning = {
-            #         "timestamp": now,
-            #         "station": "1000",
-            #         "warning_type": 'Frostwarnung',
-            #         "trigger_temp": warnings['Frostwarnung'].iat[0],
-            #         "active": mqtt_client.warning_frost
-            #     }
-            #     df_warning = pd.DataFrame([warning])
-            #     df_warning.to_sql(name="warnings", con=engine, if_exists="append", index=False)
+        # Trigger a warning if certain temperature limit has been exceeded ------------------------------------------
+        if "temperature" in df.columns:
+            # Extract warning relevant data from
+            warnings = {"Hitzewarnung": {"high_limit": True}, "Frostwarnung": {"high_limit": False}}
+            for warning_type in warnings:
+                # Extract temperature to trigger a warning and current warning status from database
+                with engine.connect() as con:
+                    trigger_temp = pd.read_sql(text(f"SELECT {warning_type} FROM {table_stations} "
+                                                    f"WHERE ID = {msg.topic}"), con)
+                    active = pd.read_sql(text(f"SELECT active FROM warnings "
+                                              f"WHERE station_ID = {msg.topic} AND warning_type = '{warning_type}' "
+                                              f"ORDER BY ID DESC LIMIT 1"), con)
+
+                # Create dictionary to work with
+                warnings[warning_type]["trigger_temp"] = trigger_temp[warning_type].iat[0]
+                if not active.empty:
+                    warnings[warning_type]["active"] = active["active"].iat[0]
+                else:
+                    warnings[warning_type]["active"] = 0
+
+            for warning_type in warnings:
+                # Define warning conditions depending on warning type
+                if warnings[warning_type]["high_limit"]:
+                    warning_coming = (df["temperature"].iat[0] >= warnings[warning_type]["trigger_temp"] and
+                                      not warnings[warning_type]["active"])
+                    warning_going = (df["temperature"].iat[0] < warnings[warning_type]["trigger_temp"] - 0.5 and
+                                     warnings[warning_type]["active"])
+                else:
+                    warning_coming = (df["temperature"].iat[0] <= warnings[warning_type]["trigger_temp"] and
+                                      not warnings[warning_type]["active"])
+                    warning_going = (df["temperature"].iat[0] > warnings[warning_type]["trigger_temp"] + 0.5 and
+                                     warnings[warning_type]["active"])
+
+                # Write a message to database and publish message on mqtt broker if warning is coming or going
+                if warning_coming or warning_going:
+                    warning = {
+                        "timestamp": now,
+                        "station_ID": msg.topic,
+                        "warning_type": warning_type,
+                        "trigger_temp": warnings[warning_type]["trigger_temp"],
+                        "active": not warnings[warning_type]["active"]
+                    }
+                    df_warning = pd.DataFrame([warning])
+                    df_warning.to_sql(name="warnings", con=engine, if_exists="append", index=False)
+                    warning_json = df_warning.to_json(orient="records")
+                    print(warning_json)
+                    mqtt_client.publish(topic="station_warnings", payload=warning_json, qos=2)
 
     else:
         print("No data received")
 
 
-# MQTT client initialization -----------------------------------------------------------------------------------------
+def on_publish(client, userdata, result):
+    print("Warning has been published")
+
+
+# MQTT client initialization ----------------------------------------------------------------------------------------
 mqtt_client = Client(mqtt["client_id"])
 mqtt_client.on_connect = on_connect
 mqtt_client.on_message = on_message
+mqtt_client.on_publish = on_publish
 mqtt_client.username_pw_set(mqtt["username"], mqtt["password"])
 mqtt_client.connect(mqtt["host"], mqtt["port"])
+
+if __name__ == '__main__':
+    mqtt_client.loop_forever()
