@@ -12,8 +12,8 @@ In den nachfolgenden Abschnitten wird in Kürze erläutert wie die Software unte
    https://www.python.org/downloads/. Wählen Sie hierbei die Checkbox **Add python.exe to PATH** aus
 2. Laden Sie das Projekt als ZIP Ordner aus GitHub über den folgenden Link herunter und entpacken Sie es:
    https://github.com/HahnLuca/weather-visualization  
-
-    ![project download](project_download.png)  
+    
+    <img width="667" alt="project_download" src="https://user-images.githubusercontent.com/127131418/226600297-85cbb874-9103-4e21-a357-54cc0b48de01.png">  
 
 3. Öffnen Sie die Windows-Eingabeaufforderung und navigieren Sie in den soeben heruntergeladenen Ordner.
 4. Um nun alle benötigten Module zu installieren, führen Sie folgenden Befehl aus: 
@@ -32,20 +32,20 @@ Im MySQL Installer können größtenteils die Default-Einstellungen verwendet we
 5. Daraufhin können die neuesten Versionen des bereits erwähnten "MySQL Servers" und der "MySQL Workbench"
    unter "Select Products" ausgewählt und hinzugefügt werden.  
 
-    ![mysql products](mysql_products.png)  
+    <img width="584" alt="mysql_products" src="https://user-images.githubusercontent.com/127131418/226600514-0a8730c2-8746-42d7-90f6-b5a5f6392908.png">  
 
 6. In den nächsten Fenstern können die Default-Einstellungen übernommen werden.
 7. Bei "Accounts and Roles" muss ein Root Passwort festgelegt werden.
    Außerdem sollte hier ein neuer Benutzer angelegt werden.  
 
-    ![mysql user](mysql_user.png)  
+    <img width="586" alt="mysql_user" src="https://user-images.githubusercontent.com/127131418/226600596-72b19d62-a252-488b-af2c-42472de48558.png">  
 
 8. In den nächsten Fenstern sind wieder die Default-Einstellungen zu übernehmen.
 9. Im Anschluss an die Installation öffnen Sie die MySQL Workbench.
 10. Hier können Sie über das Plus eine neue "MySQL Connection" anlegen 
     und dabei, den von Ihnen angelegten User verwenden.  
 
-    ![mysql connection](mysql_con.png)  
+    <img width="834" alt="mysql_con" src="https://user-images.githubusercontent.com/127131418/226600636-0c6fdd2f-f887-4166-836d-14bf994e1cbd.png">  
 
 11. Über die soeben angelegte Verbindung können Sie sich nun mit dem MySQL Server verbinden.
 
