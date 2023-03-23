@@ -56,7 +56,7 @@ app.layout = dbc.Container([
                     ),
                 ]),
                 dbc.Col([
-                    dbc.NavbarBrand("Visualisierung Umweltmessdaten"),
+                    dbc.NavbarBrand("Dashboard Umweltdaten"),
                 ])
             ]),
             dbc.NavbarToggler(id="navbar_toggler"),
@@ -72,11 +72,11 @@ app.layout = dbc.Container([
                 id="navbar_collapse",
                 navbar=True,
             ),
-        ]), className="mb-3", color="steelblue", dark=True,
+        ], fluid=True), className="mb-3", color="steelblue", dark=True,
     ),
     dash.page_container,
     dcc.Location(id="url")
-])
+], fluid=True)
 # End general layout ------------------------------------------------------------------------------------------------
 
 

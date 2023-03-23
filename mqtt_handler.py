@@ -20,7 +20,7 @@ def on_connect(client, userdata, flags, rc):
         with engine.connect() as con:
             df_stations = pd.read_sql_table(table_stations, con)
         if not df_stations.empty:
-            topics = [(str(station_id), 0) for station_id in df_stations["ID"]]
+            topics = [(f"station{station_id}", 0) for station_id in df_stations["ID"]]
             client.subscribe(topics)
         # TODO Enable line below when debug=False was set in app.run_server()
         # In debug mode message is printed multiple times
@@ -57,23 +57,23 @@ def on_message(client, userdata, msg):
         print(df)
 
         # Insert data into the right table depending on the topic
-        sql_table = "station" + msg.topic
         try:
-            df.to_sql(name=sql_table, con=engine, if_exists="append", index=False)
+            df.to_sql(name=msg.topic, con=engine, if_exists="append", index=False)
         except exc.SQLAlchemyError as err:
-            print(f"An error occured while inserting data into {sql_table}:\n{err.__cause__}\n")
+            print(f"An error occured while inserting data into {msg.topic}:\n{err.__cause__}\n")
 
         # Trigger a warning if certain temperature limit has been exceeded ------------------------------------------
         if "temperature" in df.columns:
+            station_id = int(''.join(i for i in msg.topic if i.isdigit()))
             # Extract warning relevant data from
             warnings = {"Hitzewarnung": {"high_limit": True}, "Frostwarnung": {"high_limit": False}}
             for warning_type in warnings:
                 # Extract temperature to trigger a warning and current warning status from database
                 with engine.connect() as con:
                     trigger_temp = pd.read_sql(text(f"SELECT {warning_type} FROM {table_stations} "
-                                                    f"WHERE ID = {msg.topic}"), con)
+                                                    f"WHERE ID = {station_id}"), con)
                     active = pd.read_sql(text(f"SELECT active FROM warnings "
-                                              f"WHERE station_ID = {msg.topic} AND warning_type = '{warning_type}' "
+                                              f"WHERE station_ID = {station_id} AND warning_type = '{warning_type}' "
                                               f"ORDER BY ID DESC LIMIT 1"), con)
 
                 # Create dictionary to work with
@@ -100,7 +100,7 @@ def on_message(client, userdata, msg):
                 if warning_coming or warning_going:
                     warning = {
                         "timestamp": now,
-                        "station_ID": msg.topic,
+                        "station_ID": station_id,
                         "warning_type": warning_type,
                         "trigger_temp": warnings[warning_type]["trigger_temp"],
                         "active": not warnings[warning_type]["active"]

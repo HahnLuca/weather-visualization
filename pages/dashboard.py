@@ -16,7 +16,6 @@ from geopy.distance import great_circle
 from plotly.subplots import make_subplots
 import pandas as pd
 from sqlalchemy import text
-
 from database import engine
 from config import table_stations, elements
 
@@ -198,7 +197,7 @@ def update_dataframe(n, station_id, sampling, element_types):
     if station_id:
         # Load selected elements into dataframe from choosen station
         with engine.connect() as con:
-            df = pd.read_sql_table("station" + str(station_id), index_col="timestamp",
+            df = pd.read_sql_table(f"station{station_id}", index_col="timestamp",
                                    columns=element_types.split("_"), con=con)
 
         # Dataframe contains all the data from the last month
@@ -257,17 +256,18 @@ def update_cards(df_json, station_id):
 @callback(
     Output("graph", "figure"),
     Input("dataframe", "data"),
+    State("current_station_id", "data"),
     State("radio_sampling", "value"),
     State("dropdown_element", "value"))
-def update_plot(df_json, sampling, elem_type):
+def update_plot(df_json, station_id, sampling, elem_type):
     # Create basic line chart
-    fig1 = make_subplots(specs=[[{"secondary_y": True}]])
-    fig1.update_layout(margin={"l": 20, "r": 20, "t": 35, "b": 0}, height=450, legend_orientation="h",
-                       hovermode="x", uirevision="foo")
+    fig = make_subplots(specs=[[{"secondary_y": True}]])
+    fig.update_layout(margin={"l": 20, "r": 20, "t": 35, "b": 0}, height=450, legend_orientation="h",
+                      hovermode="x", uirevision="foo")
 
     # Configure the rangeselector buttons depending on which sampling level has been choosen
     if sampling == "daily":
-        fig1.update_xaxes(
+        fig.update_xaxes(
             rangeselector_buttons=[
                 dict(count=1, label="1Y", step="year", stepmode="backward"),
                 dict(count=6, label="6M", step="month", stepmode="backward"),
@@ -278,7 +278,7 @@ def update_plot(df_json, sampling, elem_type):
             ]
         )
     else:
-        fig1.update_xaxes(
+        fig.update_xaxes(
             rangeselector_buttons=[
                 dict(count=1, label="1M", step="month", stepmode="backward"),
                 dict(count=14, label="2W", step="day", stepmode="backward"),
@@ -294,13 +294,13 @@ def update_plot(df_json, sampling, elem_type):
     elem_type = elem_type.split("_")
 
     # Add first type of traces to plot
-    fig1.update_yaxes(title_text=f"{elements[elem_type[0]]['name']} in {elements[elem_type[0]]['unit']}",
-                      secondary_y=False, range=elements[elem_type[0]]["range"], fixedrange=True)
+    fig.update_yaxes(title_text=f"{elements[elem_type[0]]['name']} in {elements[elem_type[0]]['unit']}",
+                     secondary_y=False, range=elements[elem_type[0]]["range"], fixedrange=True)
 
     # Add all traces corresponding to the current element type
     for trace in (column for column in df.columns if elem_type[0] in column):
         trace_name = trace.replace(elem_type[0], elements[elem_type[0]]['name'])
-        fig1.add_trace(
+        fig.add_trace(
             go.Scattergl(name=trace_name, x=df["timestamp"], y=df[trace], legendgroup=elem_type[0],
                          mode="lines", marker_color=elements[elem_type[0]]["color"],
                          hovertemplate="%{y}" + elements[elem_type[0]]["unit"],
@@ -310,17 +310,17 @@ def update_plot(df_json, sampling, elem_type):
 
         # Change min and max traces to dotted lines
         if "_min" in trace_name or "_max" in trace_name:
-            fig1.update_traces(selector=dict(name=trace_name), line_dash="dot")
+            fig.update_traces(selector=dict(name=trace_name), line_dash="dot")
 
     # If there is a second element to plot add a second type of traces with a secondary y-axis
     if len(elem_type) > 1:
-        fig1.update_yaxes(title_text=f"{elements[elem_type[1]]['name']} in {elements[elem_type[1]]['unit']}",
-                          secondary_y=True, range=elements[elem_type[1]]["range"], fixedrange=True, tickmode="sync")
+        fig.update_yaxes(title_text=f"{elements[elem_type[1]]['name']} in {elements[elem_type[1]]['unit']}",
+                         secondary_y=True, range=elements[elem_type[1]]["range"], fixedrange=True, tickmode="sync")
 
         # Add all traces corresponding to the current element type
         for trace in (column for column in df.columns if elem_type[1] in column):
             trace_name = trace.replace(elem_type[1], elements[elem_type[1]]['name'])
-            fig1.add_trace(
+            fig.add_trace(
                 go.Scattergl(name=trace_name, x=df["timestamp"], y=df[trace], legendgroup=elem_type[1],
                              mode="lines", marker_color=elements[elem_type[1]]["color"],
                              hovertemplate="%{y}" + elements[elem_type[1]]["unit"],
@@ -330,8 +330,23 @@ def update_plot(df_json, sampling, elem_type):
 
             # Change min and max traces to dotted lines
             if "_min" in trace_name or "_max" in trace_name:
-                fig1.update_traces(selector=dict(name=trace_name), line_dash="dot")
+                fig.update_traces(selector=dict(name=trace_name), line_dash="dot")
 
-    return fig1
+    # Show horizontal warning lines if temperature is in plot
+    if "temperature" in elem_type:
+        with engine.connect() as con:
+            trigger_temp = pd.read_sql(text(f"SELECT Hitzewarnung, Frostwarnung FROM {table_stations} "
+                                            f"WHERE ID = {station_id}"), con)
+
+        fig.add_hline(y=trigger_temp["Hitzewarnung"].iat[0], line={"dash": "dash", "width": 1},
+                      annotation_text=f"Hitzewarnung ({trigger_temp['Hitzewarnung'].iat[0]}"
+                                      f"{elements['temperature']['unit']})",
+                      annotation_position="top left")
+        fig.add_hline(y=trigger_temp["Frostwarnung"].iat[0], line={"dash": "dash", "width": 1},
+                      annotation_text=f"Frostwarnung ({trigger_temp['Frostwarnung'].iat[0]}"
+                                      f"{elements['temperature']['unit']})",
+                      annotation_position="bottom left")
+
+    return fig
 
 # End page callbacks ------------------------------------------------------------------------------------------------
