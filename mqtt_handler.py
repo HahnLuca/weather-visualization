@@ -5,7 +5,7 @@
 # -------------------------------------------------------------------------------------------------------------------
 # MQTT subscriber with automatic database inserting
 
-from datetime import datetime
+from datetime import datetime, timezone
 import json
 import pandas as pd
 from paho.mqtt.client import Client
@@ -40,16 +40,11 @@ def on_message(client, userdata, msg):
         print(f"Fehlerhafte Daten wurden empfangen:\n{err}")
         return
 
-    # Preset a timestamp in case none is transmitted
-    now = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
-    data = {"timestamp": now}
-    # Remove Nones and not expected variables from data
-    valid_variables = list(elements.keys())
-    valid_variables.append("timestamp")
-    data.update({item["variable"].lower(): item["value"] for item in data_raw
-                 if item is not None and item["variable"].lower() in valid_variables})
-    # Make sure transmitted timestamp is in correct format
-    data["timestamp"] = pd.to_datetime(data["timestamp"])
+    # Format data and add a timestamp
+    now = datetime.now(tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
+    data = {"timestamp_utc": now}
+    data.update({item["variable"]: item["value"] for item in data_raw
+                 if item is not None and item["variable"] in list(elements.keys())})
 
     # Check if actual data besides rssi and timestamp value was transmitted
     if len(data) > 2:
@@ -64,6 +59,7 @@ def on_message(client, userdata, msg):
 
         # Trigger a warning if certain temperature limit has been exceeded ------------------------------------------
         if "temperature" in df.columns:
+            # Get station id from topic
             station_id = int(''.join(i for i in msg.topic if i.isdigit()))
             # Extract warning relevant data from
             warnings = {"Hitzewarnung": {"high_limit": True}, "Frostwarnung": {"high_limit": False}}
@@ -99,7 +95,7 @@ def on_message(client, userdata, msg):
                 # Write a message to database and publish message on mqtt broker if warning is coming or going
                 if warning_coming or warning_going:
                     warning = {
-                        "timestamp": now,
+                        "timestamp_utc": now,
                         "station_ID": station_id,
                         "warning_type": warning_type,
                         "trigger_temp": warnings[warning_type]["trigger_temp"],
@@ -108,7 +104,6 @@ def on_message(client, userdata, msg):
                     df_warning = pd.DataFrame([warning])
                     df_warning.to_sql(name="warnings", con=engine, if_exists="append", index=False)
                     warning_json = df_warning.to_json(orient="records")
-                    print(warning_json)
                     mqtt_client.publish(topic="station_warnings", payload=warning_json, qos=2)
 
     else:

@@ -108,7 +108,7 @@ layout = dbc.Row([
         ])
     ]),
     dcc.Store(id="dataframe"),
-    dcc.Interval(id="dataframe_update", interval=10 * 1000, n_intervals=0)
+    dcc.Interval(id="dataframe_update", interval=30 * 1000, n_intervals=0)
 ])
 
 
@@ -197,14 +197,18 @@ def update_dataframe(n, station_id, sampling, element_types):
     if station_id:
         # Load selected elements into dataframe from choosen station
         with engine.connect() as con:
-            df = pd.read_sql_table(f"station{station_id}", index_col="timestamp",
+            df = pd.read_sql_table(f"station{station_id}", index_col="timestamp_utc",
                                    columns=element_types.split("_"), con=con)
+
+        # Convert utc time to local time
+        df.index = df.index.tz_localize("utc").tz_convert("Europe/Berlin")
+        df.index.rename("timestamp_local", inplace=True)
 
         # Dataframe contains all the data from the last month
         if sampling == "all":
             df = df.last("31D")
             df.reset_index(inplace=True)
-            return df.to_json(date_format="iso", orient="split")
+            return df.to_json(date_format="iso", orient="table")
 
         # Dataframe contains only certain daily values from alltime
         else:
@@ -214,7 +218,7 @@ def update_dataframe(n, station_id, sampling, element_types):
                 df_daily[f"{column}_mean"] = df[f"{column}"].resample("D").mean().round(1)
                 df_daily[f"{column}_max"] = df[f"{column}"].resample("D").max()
             df_daily.reset_index(inplace=True)
-            return df_daily.to_json(date_format="iso", orient="split")
+            return df_daily.to_json(date_format="iso", orient="table")
     # Abort callback if no station available
     else:
         raise PreventUpdate
@@ -238,14 +242,18 @@ def update_cards(df_json, station_id):
         with engine.connect() as con:
             station_name = pd.read_sql_query(text(f"SELECT Name FROM {table_stations} "
                                                   f"WHERE ID = {station_id}"), con)["Name"].iat[0]
-            last_row = pd.read_sql_query(text(f"SELECT * FROM station{station_id} ORDER BY id DESC LIMIT 1"), con)
-            last_row.replace(to_replace=[None], value="N/A", inplace=True)
+            df_last = pd.read_sql_query(text(f"SELECT * FROM station{station_id} ORDER BY id DESC LIMIT 1"), con)
+            df_last.replace(to_replace=[None], value="N/A", inplace=True)
 
-        if not last_row.empty:
+            # Convert utc time to local time
+            df_last["timestamp_utc"] = df_last["timestamp_utc"].dt.tz_localize("utc").dt.tz_convert("Europe/Berlin")
+            df_last.rename(columns={"timestamp_utc": "timestamp_local"}, inplace=True)
+
+        if not df_last.empty:
             return [
                 f"Aktuelle Werte von: {station_name}",
-                f"zuletzt aktualisiert: {last_row['timestamp'].iat[0]}"
-            ] + [f"{last_row[element].iat[0]}{elements[element]['unit']}" for element in elements]
+                f"zuletzt aktualisiert: {df_last['timestamp_local'].iat[0]}"
+            ] + [f"{df_last[element].iat[0]}{elements[element]['unit']}" for element in elements]
         else:
             raise PreventUpdate
     else:
@@ -290,7 +298,7 @@ def update_plot(df_json, station_id, sampling, elem_type):
         )
 
     # Load data and get element types to plot
-    df = pd.read_json(df_json, orient="split")
+    df = pd.read_json(df_json, orient="table")
     elem_type = elem_type.split("_")
 
     # Add first type of traces to plot
@@ -301,7 +309,7 @@ def update_plot(df_json, station_id, sampling, elem_type):
     for trace in (column for column in df.columns if elem_type[0] in column):
         trace_name = trace.replace(elem_type[0], elements[elem_type[0]]['name'])
         fig.add_trace(
-            go.Scattergl(name=trace_name, x=df["timestamp"], y=df[trace], legendgroup=elem_type[0],
+            go.Scattergl(name=trace_name, x=df["timestamp_local"], y=df[trace], legendgroup=elem_type[0],
                          mode="lines", marker_color=elements[elem_type[0]]["color"],
                          hovertemplate="%{y}" + elements[elem_type[0]]["unit"],
                          hoverlabel={"font_color": "white", "bordercolor": "white"}),
@@ -321,7 +329,7 @@ def update_plot(df_json, station_id, sampling, elem_type):
         for trace in (column for column in df.columns if elem_type[1] in column):
             trace_name = trace.replace(elem_type[1], elements[elem_type[1]]['name'])
             fig.add_trace(
-                go.Scattergl(name=trace_name, x=df["timestamp"], y=df[trace], legendgroup=elem_type[1],
+                go.Scattergl(name=trace_name, x=df["timestamp_local"], y=df[trace], legendgroup=elem_type[1],
                              mode="lines", marker_color=elements[elem_type[1]]["color"],
                              hovertemplate="%{y}" + elements[elem_type[1]]["unit"],
                              hoverlabel={"font_color": "white", "bordercolor": "white"}),

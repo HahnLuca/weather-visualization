@@ -100,7 +100,7 @@ def update_datatable(n_new_station, n_reset, n_confirm, rows, columns):
                     Table(
                         sql_table, meta,
                         Column("id", Integer, primary_key=True, autoincrement=True),
-                        Column("timestamp", DateTime),
+                        Column("timestamp_utc", DateTime, nullable=False),
                         Column("temperature", Float),
                         Column("humidity", Float),
                         Column("rain", Float),

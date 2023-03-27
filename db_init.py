@@ -8,7 +8,6 @@ import pandas as pd
 from sqlalchemy import URL, create_engine, MetaData, exc, text, Table, Column, \
     Integer, String, Float, Double, DateTime, Boolean
 from werkzeug.security import generate_password_hash
-import customtkinter as ctk
 from config import table_stations, sql
 
 
@@ -49,7 +48,7 @@ if __name__ == "__main__":
         warnings = Table(
             "warnings", meta,
             Column("id", Integer, primary_key=True, autoincrement=True),
-            Column("timestamp", DateTime, nullable=False),
+            Column("timestamp_utc", DateTime, nullable=False),
             Column("station_ID", Integer, nullable=False),
             Column("warning_type", String(50), nullable=False),
             Column("trigger_temp", Float, nullable=False),

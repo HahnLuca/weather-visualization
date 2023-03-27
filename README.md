@@ -73,6 +73,9 @@ Im MySQL Installer können größtenteils die Default-Einstellungen verwendet we
 
 Im Folgenden werden Änderungen zwischen den einzelnen Versionen dokumentiert.
 
+### Version 0.6.0 - 
+* Speicherung der Zeitstempel in UTC
+
 ### Version 0.5.0 - 23.03.2023
 
 * Markierungen für Hitze-/Frostwarnung in Plot
