@@ -9,7 +9,7 @@ from datetime import datetime, timezone
 import json
 import pandas as pd
 from paho.mqtt.client import Client
-from sqlalchemy import exc, text, insert
+from sqlalchemy import exc, text, insert, inspect
 from database import engine, meta
 from config import mqtt, table_stations, elements
 
@@ -52,10 +52,13 @@ def on_message(client, userdata, msg):
         print(df)
 
         # Insert data into the right table depending on the topic
-        try:
-            df.to_sql(name=msg.topic, con=engine, if_exists="append", index=False)
-        except exc.SQLAlchemyError as err:
-            print(f"An error occured while inserting data into {msg.topic}:\n{err.__cause__}\n")
+        if inspect(engine).has_table(msg.topic):
+            try:
+                df.to_sql(name=msg.topic, con=engine, if_exists="append", index=False)
+            except exc.SQLAlchemyError as err:
+                print(f"An error occured while inserting data into {msg.topic}:\n{err.__cause__}\n")
+        else:
+            print(f"An error occured while inserting data into {msg.topic}: No table found called {msg.topic}")
 
         # Trigger a warning if certain temperature limit has been exceeded ------------------------------------------
         if "temperature" in df.columns:

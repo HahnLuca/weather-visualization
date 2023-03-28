@@ -15,7 +15,7 @@ from dash.exceptions import PreventUpdate
 from geopy.distance import great_circle
 from plotly.subplots import make_subplots
 import pandas as pd
-from sqlalchemy import text
+from sqlalchemy import text, inspect
 from database import engine
 from config import table_stations, elements
 
@@ -183,7 +183,11 @@ def update_current_station(station_dropdown, station_map):
         # Abort callback if no station available
         else:
             raise PreventUpdate
-    return station_id, station_id
+
+    if inspect(engine).has_table(f"station{station_id}"):
+        return station_id, station_id
+    else:
+        raise PreventUpdate
 
 
 # Update the 'global' dataframe every couple of seconds or whenever a new station has been choosen ------------------
