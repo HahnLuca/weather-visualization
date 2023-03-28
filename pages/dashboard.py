@@ -258,7 +258,10 @@ def update_cards(df_json, station_id):
             f"zuletzt aktualisiert: {df_last['timestamp_local'].iat[0]}"
         ] + [f"{df_last[element].iat[0]}{elements[element]['unit']}" for element in elements]
     else:
-        raise PreventUpdate
+        return [
+            f"Aktuelle Werte von: {station_name}",
+            "zuletzt aktualisiert: N/A"
+        ] + ["N/A" for element in elements]
 
 
 # Update graph ------------------------------------------------------------------------------------------------------
