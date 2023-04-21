@@ -1,9 +1,12 @@
 # Studienarbeit
+# HS Mannheim
+# Fakultät Elektrotechnik
 # Name: Luca Hahn
 # Matrikelnr: 1923199
 # Betreuer: Prof. Dr. Christof Hübner
+# Abgabe: 21.04.2023
 # -------------------------------------------------------------------------------------------------------------------
-# Main script
+# Main script setting up the general layout with navigation bar and starting the application
 
 import dash
 from dash import Dash, html, dcc, Input, Output, State
@@ -15,7 +18,7 @@ from database import User, db, db_url
 from mqtt_handler import mqtt_client
 
 
-# Configure the Dash server
+# Configure the Dash server -----------------------------------------------------------------------------------------
 server = Flask(__name__)
 app = Dash(__name__, server=server, use_pages=True, suppress_callback_exceptions=True,
            external_stylesheets=[dbc.themes.SANDSTONE, dbc.icons.BOOTSTRAP])
@@ -27,13 +30,12 @@ server.config.update(
 )
 db.init_app(server)
 
-# Configure the LoginManager
+# Configure the LoginManager ----------------------------------------------------------------------------------------
 login_manager = LoginManager()
 login_manager.init_app(server)
 login_manager.login_view = "/login"
 
 
-# Callback for reloading the user when refreshing the page
 @login_manager.user_loader
 def load_user(user_id):
     return db.session.get(User, int(user_id))
@@ -62,10 +64,10 @@ app.layout = dbc.Container([
             dbc.NavbarToggler(id="navbar_toggler"),
             dbc.Collapse(
                 dbc.Nav([
-                    # dbc elements wrapped inside an html.A to prevent errors when changing pages quikly (bug?)
+                    # dbc elements are wrapped inside an html.A to prevent errors when changing pages quikly (bug?)
                     dbc.NavItem(html.A(dbc.NavLink("Dashboard"), href="/",
                                        style={"text-decoration-line": "none"})),
-                    dbc.NavItem(html.A(dbc.NavLink("Konfigurieren"), href="configurations",
+                    dbc.NavItem(html.A(dbc.NavLink("Verwaltung"), href="configurations",
                                        style={"text-decoration-line": "none"})),
                     html.A(dbc.Button("Login", id="button_loginout"), id="button_loginout_link")
                 ], className="ms-auto", navbar=True),
@@ -74,6 +76,7 @@ app.layout = dbc.Container([
             ),
         ], fluid=True), className="mb-3", color="steelblue", dark=True,
     ),
+    # Contents of current page are added to the general layout
     dash.page_container,
     dcc.Location(id="url")
 ], fluid=True)
@@ -108,5 +111,7 @@ def update_loginout_button(path):
 
 if __name__ == '__main__':
     mqtt_client.loop_start()
-    # TODO set debug=False when app is finished
-    app.run_server(debug=True)
+    # Change debug to True if you are working on the code
+    # Note: If app is running in debug mode message is printed multiple times
+    #       -> Comment out the print statements in the MQTT callbacks in this case
+    app.run_server(debug=False)

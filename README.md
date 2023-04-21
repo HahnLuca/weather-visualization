@@ -1,6 +1,27 @@
 # Studienarbeit an der HS Mannheim
 
-"Webbasierte Visualisierung von Umweltmessdaten mit Python und MQTT"
+Titel: Webbasierte Visualisierung von Umweltmessdaten mit Python und MQTT  
+Name: Luca Hahn  
+Studiengang: Automatisierungstechnik  
+Abgabe: 21.04.2023  
+Betreuer: Prof. Dr. Christof Hübner  
+Fakultät Elektrotechnik  
+
+## Zusammenfassung
+
+Im Zuge der vierten industriellen Revolution werden immer mehr Maschinen intelligent miteinander vernetzt. 
+Dabei entstehen große Datenmengen, denen eine wichtige Rolle in der Optimierung sowohl prozesstechnischer als auch betriebswirtschaftlicher Prozesse zukommt.
+Die datenbasierte Vorhersage des bestmöglichen Wartungszeitpunkts einer Maschine kann etwa zur Vermeidung von Stillstandszeiten der Anlage beitragen.
+Entscheidend hierbei ist, dass eine möglichst effiziente Analyse der Daten erfolgt.
+Eine ansprechende Visualisierung der Ergebnisse kann deren Interpretierbarkeit dabei deutlich aufwerten.
+Ziel dieser Studienarbeit ist es, eine Möglichkeit zur webbasierten Visualisierung von Umweltmessdaten zu schaffen.
+Die Daten werden dabei von verschiedenen im Rhein-Neckar-Raum verteilten Wetterstationen auf einem MQTT-Broker zur Verfügung gestellt.
+Da zusätzlich zu den aktuellen Umweltmessdaten auch historische Daten dargestellt werden sollen, erfolgt die Speicherung aller empfangener Daten in einer MySQL Datenbank.
+Zur Visualisierung wurde nun ein Dashboard mit Hilfe der Python Bibliothek *dash* erstellt.
+Die Verwaltung der Wetterstationen wurde ebenfalls in das Dashboard integriert, sodass Benutzer komfortabel neue Wetterstationen anlegen können.
+Da die Webseite zukünftig allerdings öffentlich zugänglich sein soll, wurden diese Verwaltungsmöglichkeiten mit einem Passwort geschützt.
+Die finale Version des Projekts kann bei Interesse hier aus GitHub heruntergeladen werden.
+Studierende, die Interesse an einer Anschlussarbeit zu diesem Thema haben, können so eine eigene Version des Dashboards lokal betreiben und sich bereits frühzeitig einen Überblick zur Thematik verschaffen.
 
 ## Installationsanleitung
 
@@ -29,7 +50,7 @@ Im MySQL Installer können größtenteils die Default-Einstellungen verwendet we
 3. Öffnen Sie den Installer, sobald dieser heruntergladen wurde.
 4. Im Abschnitt "Choosing a Setup Type" reicht es "Custom" auszuwählen, da nur der "MySQL Server" und
    die "MySQL Workbench" für die Verwendung der Software notwendig sind.
-5. Daraufhin können die neuesten Versionen des bereits erwähnten "MySQL Servers" und der "MySQL Workbench"
+5. Daraufhin können die neuesten Versionen des "MySQL Servers" und der "MySQL Workbench"
    unter "Select Products" ausgewählt und hinzugefügt werden.  
 
     <img width="584" alt="mysql_products" src="https://user-images.githubusercontent.com/127131418/226600514-0a8730c2-8746-42d7-90f6-b5a5f6392908.png">  
@@ -43,7 +64,7 @@ Im MySQL Installer können größtenteils die Default-Einstellungen verwendet we
 8. In den nächsten Fenstern sind wieder die Default-Einstellungen zu übernehmen.
 9. Im Anschluss an die Installation öffnen Sie die MySQL Workbench.
 10. Hier können Sie über das Plus eine neue "MySQL Connection" anlegen 
-    und dabei, den von Ihnen angelegten User verwenden.  
+    und dabei den von Ihnen angelegten User verwenden.  
 
     <img width="834" alt="mysql_con" src="https://user-images.githubusercontent.com/127131418/226600636-0c6fdd2f-f887-4166-836d-14bf994e1cbd.png">  
 
@@ -51,72 +72,20 @@ Im MySQL Installer können größtenteils die Default-Einstellungen verwendet we
 
 ### Konfigurationen
 
-1. Benennen Sie die Datei config_example.py in config.py um
-2. Öffnen Sie die Datei config.py in einem Editor bzw. einer Entwicklungsumgebung Ihrer Wahl.
-3. Ersetzen Sie dort nun die beispielhaften Benutzernamen und Passwörter mit den Ihnen bekannten.
+1. Benennen Sie die Datei *config_example.py* in *config.py* um.
+2. Öffnen Sie die Datei *config.py* in einem Editor bzw. einer Entwicklungsumgebung Ihrer Wahl.
+3. Ersetzen Sie dort nun die beispielhaften Benutzernamen und Passwörter durch die Ihnen bekannten. Die Zugangsdaten 
+   des MQTT-Brokers können bei Prof. Hübner angefragt werden.
 4. Speichern Sie die Änderungen und schließen Sie die Datei. 
 5. Öffnen Sie erneut die Windows-Eingabeaufforderung und navigieren Sie in das Projekt. 
-6. Um nun die Datenbank auf Ihrem MySQL Server anzulegen und diese zu initialisieren
+6. Um nun die Datenbank auf Ihrem MySQL Server anzulegen und diese zu initialisieren,
    führen Sie den nachfolgenden Befehl aus: ```python db_init.py```
-   Hierbei werden Sie gebeten einen Benutzer anzulegen. Wenn Sie diesen Schritt überspringen, können Sie später 
-   nicht auf alle Feature des Dashboards zugreifen und somit auch keine neuen Benutzer anlegen.
+   Hierbei werden Sie gebeten, einen Benutzer anzulegen. Wenn Sie diesen Schritt überspringen, können Sie später 
+   nicht auf alle Features des Dashboards zugreifen und somit auch keine neuen Benutzer anlegen.
 
 ### Erste Schritte
 
 1. Das Programm kann nun durch den Befehl: ```python app.py``` 
    oder aus einer Entwicklungsumgebung heraus gestartet werden.
 2. Öffnen Sie das Dashboard über den erscheinenden Link.
-3. Im Bereich Konfigurieren können Sie nach erfolgreichem Login Ihre erste Wetterstation hinzufügen.
-
-
-## Versionsdokumentation
-
-Im Folgenden werden Änderungen zwischen den einzelnen Versionen dokumentiert.
-
-### Version 0.6.0 - 27.03.2023
-* Speicherung der Zeitstempel in UTC
-
-### Version 0.5.0 - 23.03.2023
-
-* Markierungen für Hitze-/Frostwarnung in Plot
-* Änderungen der gefordeterten MQTT Topics
-  * Anstatt "1000" -> "station1000"
-
-### Version 0.4.0 - 20.03.2023
-
-* Entfernen der grafischen Oberfläche in db_init.py
-* Hitze-/Frostwarnungen werden in Datenbank geloggt und auf dem topic "station_warnings" gepublished
-* Bugfixes
-
-### Version 0.3.0 - 19.03.2023
-
-* Installationsanleitung und requirements.txt wurden hinzugefügt
-* db_init.py zur Initialisierung der Datenbank wurde angelegt
-* Umgang damit, wenn keine Wetterstationen angelegt wurden, wurde ergänzt
-
-### Version 0.2.0 - 16.03.2023
-
-* Ersetzen der Zugangsdaten durch fiktive Daten
-* Automatische Anpassung der Kartenzoomstufe je nach Verteilung der Wetterstationen
-* Auswahl der Stationen sowohl über Karte als auch über Dropdown möglich
-* Neustrukturierung der MySQL Tabelle "wetterstationen"
-    * Stationen werden über ID identifiziert
-* Auswahl der Anzeige aller Daten oder nur tagesspezifische Werte (min, mean, max)
-* Verbesserte MQTT callback Funtion "on_message"
-* Ergänzung neuer Plots für Wind, Regen und Signalstärke
-
-### Version 0.1.0 - 10.03.2023
-
-* Speicherung aller über MQTT empfangenen Nachrichten in stationsspezifischen Tabellen (MySQL)
-* Erste Version Dashboard
-* Zugriffsbeschränkte "Konfigurieren" Seite
-    * Hinzufügen Wetterstationen
-    * Registrieren neuer Benutzer
-* Login Möglichkeit
-    * Benutzerverwaltung in Datenbank
-    * Passwörter werden gehashed und nicht als Klartext gespeichert
-* Anlegen neuer Wetterstationen
-    * Überprüfung, ob Änderungen keine Konflikte auslösen
-    * Automatische Generation neuer stationsspezifischer Tabelle in Datenbank
-    * Aktualisieren der MQTT Abonnements
-    
+3. Im Bereich Verwaltung können Sie nach erfolgreichem Login Ihre erste Wetterstation hinzufügen.

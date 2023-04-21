@@ -1,9 +1,14 @@
 # Studienarbeit
+# HS Mannheim
+# Fakultät Elektrotechnik
 # Name: Luca Hahn
 # Matrikelnr: 1923199
 # Betreuer: Prof. Dr. Christof Hübner
-# -------------------------------------------------------------------------------------------------------------------
-# Database initialization
+# Abgabe: 21.04.2023
+# --------------------------------------------------------------------------------------------------------------------
+# This file is meant to be executed once at the beginning to initialize the database and set up a first user
+# Additionaly it can be used to recreate tables that have been deleted or manually add new dashboard user
+
 import pandas as pd
 from sqlalchemy import URL, create_engine, MetaData, exc, text, Table, Column, \
     Integer, String, Float, Double, DateTime, Boolean
@@ -12,8 +17,7 @@ from config import table_stations, sql
 
 
 if __name__ == "__main__":
-    # Connect to database and test connection -----------------------------------------------------------------------
-    # Connect to MySQL server
+    # Connect to MySQL server and initialize database ----------------------------------------------------------------
     url = URL.create(drivername=sql["drivername"], host=sql["host"],
                      username=sql["username"], password=sql["password"])
     engine = create_engine(url)
@@ -30,9 +34,9 @@ if __name__ == "__main__":
             else:
                 print(f"Database {sql['database']} already exists")
 
-        # Update engine to be connected to database
-        url = URL.create(drivername=sql["drivername"], username=sql["username"], password=sql["password"],
-                         host=sql["host"], database=sql["database"])
+        # Recreate engine to be connected to database
+        url = URL.create(drivername=sql["drivername"], host=sql["host"], database=sql["database"],
+                         username=sql["username"], password=sql["password"])
         engine = create_engine(url)
 
         # Create necessary tables in database if not exist
@@ -62,16 +66,18 @@ if __name__ == "__main__":
         )
         meta.create_all(engine)
 
-        # Create first user to be able to log in and create new users
+        # Let the user create a first user account to be able to log in and create new user accounts -----------------
         while True:
             first_user = {"username": input("Please enter a username for dashboard access: "),
                           "pw_hash": input("Please enter a password for the user: ")}
 
             if first_user["username"] and first_user["pw_hash"]:
+                # Password hashing to avoid storing passwords as plain text
                 first_user["pw_hash"] = generate_password_hash(first_user["pw_hash"])
                 pd.DataFrame([first_user]).to_sql(name="user", con=engine, if_exists="append", index=False)
                 print(f"The dashboard user {first_user['username']} has been created")
                 break
+            # Start process of user creation again in case user has not entered anything
             else:
                 print("Incorrect inputs. Try again.")
 

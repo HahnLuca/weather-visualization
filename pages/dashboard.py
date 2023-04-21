@@ -1,9 +1,13 @@
 # Studienarbeit
+# HS Mannheim
+# Fakultät Elektrotechnik
 # Name: Luca Hahn
 # Matrikelnr: 1923199
 # Betreuer: Prof. Dr. Christof Hübner
+# Abgabe: 21.04.2023
 # ------------------------------------------------------------------------------------------------------------------
-# Main dashboard page (layout & callbacks)
+# Main dashboard page showing desired data
+# User has multiple options to choose from different stations, elements of weather and sampling levels
 
 import dash
 import numpy as np
@@ -19,6 +23,7 @@ from sqlalchemy import text, inspect
 from database import engine
 from config import table_stations, elements
 
+# Setup page to be used in multi-page app
 dash.register_page(__name__, path="/", title="Dashboard", name="Dashboard")
 
 # Page layout -------------------------------------------------------------------------------------------------------
@@ -57,7 +62,7 @@ part_map = dbc.Row([
     ])
 ])
 
-# Plot for selected data --------------------------------------------------------------------------------------------
+# Plot for data visualization ---------------------------------------------------------------------------------------
 part_data = dbc.Row([
     dbc.Col([
         html.H5("Auswahl der dargestellten Wetterelemente"),
@@ -110,8 +115,6 @@ layout = dbc.Row([
     dcc.Store(id="dataframe"),
     dcc.Interval(id="dataframe_update", interval=30 * 1000, n_intervals=0)
 ])
-
-
 # End page layout ---------------------------------------------------------------------------------------------------
 
 
@@ -122,20 +125,22 @@ layout = dbc.Row([
     Output("map", "figure"),
     Input("map_update", "n_intervals"))
 def update_possible_stations(n):
+    # Load weather stations from database and add them to dropdown
     with engine.connect() as con:
         df_stations = pd.read_sql_table(table_stations, con)
     dropdown_options = [
         {"label": station["Name"], "value": station["ID"]} for index, station in df_stations.iterrows()
     ]
 
-    # Check if any stations are available
+    # Configure map if any stations are availabel
     if dropdown_options:
         # Calculate distance between minimal and maximal station coordinates and set minimal distance for zoom
         diff_km = great_circle((df_stations["Breitengrad"].min(), df_stations["Längengrad"].min()),
                                (df_stations["Breitengrad"].max(), df_stations["Längengrad"].max())).km
         diff_km = max(diff_km, 5)
+
         # Estimate zoom level to fit all points in 350 pixel wide map (map height = 450p, map width varies)
-        # https://docs.mapbox.com/help/glossary/zoom-level/
+        # More information: https://docs.mapbox.com/help/glossary/zoom-level/
         km_per_pixel_at_zoom_0 = 50  # Valid around latitude = 50°
         zoom = np.log2(km_per_pixel_at_zoom_0 / (diff_km / 350))
 
@@ -184,13 +189,14 @@ def update_current_station(station_dropdown, station_map):
         else:
             raise PreventUpdate
 
+    # Make sure correspondig table is availabel in database
     if inspect(engine).has_table(f"station{station_id}"):
         return station_id, station_id
     else:
         raise PreventUpdate
 
 
-# Update the 'global' dataframe every couple of seconds or whenever a new station has been choosen ------------------
+# Update the 'global' dataframe every 30 seconds or whenever new configurations have been mande ---------------------
 @callback(
     Output("dataframe", "data"),
     Input("dataframe_update", "n_intervals"),
@@ -208,14 +214,14 @@ def update_dataframe(n, station_id, sampling, element_types):
         df.index = df.index.tz_localize("utc").tz_convert("Europe/Berlin")
         df.index.rename("timestamp_local", inplace=True)
 
-        # Dataframe contains all the data from the last month
         if sampling == "all":
+            # Dataframe has to contain all the data from the last month
             df = df.last("31D")
             df.reset_index(inplace=True)
             return df.to_json(date_format="iso", orient="table")
 
-        # Dataframe contains only certain daily values from alltime
         else:
+            # Dataframe has to contain only certain daily values of all time
             df_daily = pd.DataFrame()
             for column in df.columns:
                 df_daily[f"{column}_min"] = df[f"{column}"].resample("D").min()
@@ -223,6 +229,7 @@ def update_dataframe(n, station_id, sampling, element_types):
                 df_daily[f"{column}_max"] = df[f"{column}"].resample("D").max()
             df_daily.reset_index(inplace=True)
             return df_daily.to_json(date_format="iso", orient="table")
+
     # Abort callback if no station available
     else:
         raise PreventUpdate
@@ -264,7 +271,7 @@ def update_cards(df_json, station_id):
         ] + ["N/A" for element in elements]
 
 
-# Update graph ------------------------------------------------------------------------------------------------------
+# Refresh graph -----------------------------------------------------------------------------------------------------
 @callback(
     Output("graph", "figure"),
     Input("dataframe", "data"),
@@ -272,7 +279,7 @@ def update_cards(df_json, station_id):
     State("radio_sampling", "value"),
     State("dropdown_element", "value"))
 def update_plot(df_json, station_id, sampling, elem_type):
-    # Create basic line chart
+    # Create basic line chart with option of a secondary y-axis
     fig = make_subplots(specs=[[{"secondary_y": True}]])
     fig.update_layout(margin={"l": 20, "r": 20, "t": 35, "b": 0}, height=450, legend_orientation="h",
                       hovermode="x", uirevision="foo")
@@ -360,5 +367,3 @@ def update_plot(df_json, station_id, sampling, elem_type):
                       annotation_position="bottom left")
 
     return fig
-
-# End page callbacks ------------------------------------------------------------------------------------------------

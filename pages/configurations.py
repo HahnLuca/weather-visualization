@@ -1,21 +1,26 @@
 # Studienarbeit
+# HS Mannheim
+# Fakultät Elektrotechnik
 # Name: Luca Hahn
 # Matrikelnr: 1923199
 # Betreuer: Prof. Dr. Christof Hübner
+# Abgabe: 21.04.2023
 # ------------------------------------------------------------------------------------------------------------------
-# Restricted settings page
+# Restricted page for adding and configering weather stations
+# Additionaly new users can be added to the database here
 
 import dash
 from dash import html, callback, Input, Output, State, dash_table, ctx, no_update
 import dash_bootstrap_components as dbc
 from flask_login import current_user
 import pandas as pd
-from sqlalchemy import text, inspect, Table, Column, Integer, Float, String, DateTime, exc
+from sqlalchemy import text, inspect, Table, Column, Integer, Float, DateTime, exc
 from database import engine, meta, User, db
 from mqtt_handler import mqtt_client
 from config import table_stations
 
-dash.register_page(__name__, title="Konfigurieren", name="Konfigurieren")
+# Setup page to be used in multi-page app
+dash.register_page(__name__, title="Verwaltung", name="Verwaltung")
 
 
 # Page layout -------------------------------------------------------------------------------------------------------
@@ -27,9 +32,10 @@ def layout():
                 html.H5(["Zugriff verweigert, bitte ", html.A("einloggen", href="login"), "!"])
             ])
         ])
+
     else:
         return dbc.Row([
-            # Part DataTable
+            # Part DataTable containing information about weather stations
             dbc.Row([
                 dbc.Col([
                     html.H5("Wetterstationen konfigurieren:", className="mb-2"),
@@ -44,6 +50,7 @@ def layout():
                     html.Div(id="table_msg", className="mt-2")
                 ])
             ]),
+
             # Part new user registration
             dbc.Row([
                 dbc.Col([html.H5("Neuen Benutzer anlegen:")]),
@@ -58,7 +65,6 @@ def layout():
                 dbc.Col([html.Div(id="new_user_msg", className="mt-2")])
             ], className="mt-4")
         ])
-
 # End page layout ---------------------------------------------------------------------------------------------------
 
 
@@ -86,14 +92,14 @@ def update_datatable(n_new_station, n_reset, n_confirm, rows, columns):
                 # If check was succesful truncate original table and save new DataTable
                 con.execute(text(f"TRUNCATE TABLE {table_stations}"))
                 df_stations.to_sql(name=f"{table_stations}", con=engine, if_exists="append", index=False)
+
+            # If check failed drop temporary table and end function
             except exc.SQLAlchemyError:
-                # If check failed drop temporary table and end function
                 con.execute(text(f"DROP TABLE {table_stations}_temp"))
                 return no_update, no_update, "Fehlerhafte Eingabe, Tabelle konnte nicht übernommen werden!"
 
         # Create a new table in database for every added station
         if not df_stations.empty:
-            # TODO implement general data format
             for station_id in df_stations["ID"]:
                 sql_table = "station" + str(station_id)
                 if not inspect(engine).has_table(sql_table):
@@ -110,7 +116,7 @@ def update_datatable(n_new_station, n_reset, n_confirm, rows, columns):
                     )
             meta.create_all(engine)
 
-        # Update MQTT subscriptions
+        # Refresh MQTT subscriptions
         mqtt_client.unsubscribe("#")
         if not df_stations.empty:
             topics = [(f"station{station_id}", 0) for station_id in df_stations["ID"]]
@@ -128,6 +134,7 @@ def update_datatable(n_new_station, n_reset, n_confirm, rows, columns):
         # Read last saved data from database
         with engine.connect() as con:
             df = pd.read_sql_table(table_stations, con=con)
+
         rows = df.to_dict("records")
         columns = [{"name": i, "id": i} for i in df.columns]
         return rows, columns, ""

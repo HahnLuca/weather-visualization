@@ -1,48 +1,55 @@
 # Studienarbeit
+# HS Mannheim
+# Fakultät Elektrotechnik
 # Name: Luca Hahn
 # Matrikelnr: 1923199
 # Betreuer: Prof. Dr. Christof Hübner
+# Abgabe: 21.04.2023
 # -------------------------------------------------------------------------------------------------------------------
-# MQTT subscriber with automatic database inserting
+# Handle mqtt connection and write incoming data to database
+# If current temperature is below/above certain values warnings will be publish on topic: 'station_warnings'
 
 from datetime import datetime, timezone
 import json
 import pandas as pd
 from paho.mqtt.client import Client
-from sqlalchemy import exc, text, insert, inspect
-from database import engine, meta
+from sqlalchemy import exc, text,  inspect
+from database import engine
 from config import mqtt, table_stations, elements
 
 
 # MQTT callbacks ----------------------------------------------------------------------------------------------------
 def on_connect(client, userdata, flags, rc):
     if rc == 0:
+        # Subscribe to all the stations registered in database
         with engine.connect() as con:
             df_stations = pd.read_sql_table(table_stations, con)
         if not df_stations.empty:
             topics = [(f"station{station_id}", 0) for station_id in df_stations["ID"]]
             client.subscribe(topics)
-        # TODO Enable line below when debug=False was set in app.run_server()
-        # In debug mode message is printed multiple times
-        # print("Successfully connected to MQTT broker")
+        # Note: If app is running in debug mode message is printed multiple times
+        print("Successfully connected to MQTT broker")
     else:
         print(f"Failed to connect, return code {rc}")
 
 
 def on_disconnect(client, userdata, rc):
-    print(f"Disconnected from MQTT broker, return code{rc}")
+    # Note: If app is running in debug mode message is printed multiple times
+    print(f"Disconnected from MQTT broker, return code {rc}")
 
 
 def on_message(client, userdata, msg):
+    # Format message and save to database ---------------------------------------------------------------------------
     try:
         data_raw = json.loads(msg.payload.decode())
     except json.JSONDecodeError as err:
         print(f"Fehlerhafte Daten wurden empfangen:\n{err}")
         return
 
-    # Format data and add a timestamp
+    # Format data and add a utc timestamp
     now = datetime.now(tz=timezone.utc).strftime("%Y-%m-%d %H:%M:%S")
     data = {"timestamp_utc": now}
+    # Use only weather elements from config.py and ignore other transmitted data
     data.update({item["variable"]: item["value"] for item in data_raw
                  if item is not None and item["variable"] in list(elements.keys())})
 
@@ -64,10 +71,10 @@ def on_message(client, userdata, msg):
         if "temperature" in df.columns:
             # Get station id from topic
             station_id = int(''.join(i for i in msg.topic if i.isdigit()))
-            # Extract warning relevant data from
+
+            # Extract temperature to trigger a warning and current warning status from database
             warnings = {"Hitzewarnung": {"high_limit": True}, "Frostwarnung": {"high_limit": False}}
             for warning_type in warnings:
-                # Extract temperature to trigger a warning and current warning status from database
                 with engine.connect() as con:
                     trigger_temp = pd.read_sql(text(f"SELECT {warning_type} FROM {table_stations} "
                                                     f"WHERE ID = {station_id}"), con)
@@ -82,6 +89,7 @@ def on_message(client, userdata, msg):
                 else:
                     warnings[warning_type]["active"] = 0
 
+            # Check current temperature and publish warning if required
             for warning_type in warnings:
                 # Define warning conditions depending on warning type
                 if warnings[warning_type]["high_limit"]:
@@ -109,6 +117,7 @@ def on_message(client, userdata, msg):
                     warning_json = df_warning.to_json(orient="records")
                     mqtt_client.publish(topic="station_warnings", payload=warning_json, qos=2)
 
+    # Skip saving data if only rssi was transmitted
     else:
         print("No data received")
 
@@ -120,10 +129,12 @@ def on_publish(client, userdata, result):
 # MQTT client initialization ----------------------------------------------------------------------------------------
 mqtt_client = Client(mqtt["client_id"])
 mqtt_client.on_connect = on_connect
+mqtt_client.on_disconnect = on_disconnect
 mqtt_client.on_message = on_message
 mqtt_client.on_publish = on_publish
 mqtt_client.username_pw_set(mqtt["username"], mqtt["password"])
 mqtt_client.connect(mqtt["host"], mqtt["port"])
 
+# File can be used without main application -------------------------------------------------------------------------
 if __name__ == '__main__':
     mqtt_client.loop_forever()

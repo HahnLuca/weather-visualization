@@ -1,15 +1,19 @@
 # Studienarbeit
+# HS Mannheim
+# Fakultät Elektrotechnik
 # Name: Luca Hahn
 # Matrikelnr: 1923199
 # Betreuer: Prof. Dr. Christof Hübner
+# Abgabe: 21.04.2023
 # ------------------------------------------------------------------------------------------------------------------
-# Logout page
+# Logout page with automatic redirection after logout
 
 import dash
 from dash import html, dcc, callback, Input, Output
 import dash_bootstrap_components as dbc
 from flask_login import logout_user, current_user
 
+# Setup page to be used in multi-page app
 dash.register_page(__name__, title="Logout", name="Logout")
 
 

@@ -1,9 +1,12 @@
 # Studienarbeit
+# HS Mannheim
+# Fakultät Elektrotechnik
 # Name: Luca Hahn
 # Matrikelnr: 1923199
 # Betreuer: Prof. Dr. Christof Hübner
+# Abgabe: 21.04.2023
 # ------------------------------------------------------------------------------------------------------------------
-# Login page
+# Login page with automatic redirection after login
 
 import dash
 from dash import html, dcc, callback, Input, Output, State
@@ -11,6 +14,7 @@ import dash_bootstrap_components as dbc
 from flask_login import current_user, login_user
 from database import User
 
+# Setup page to be used in multi-page app
 dash.register_page(__name__, title="Login", name="Login")
 
 
@@ -22,6 +26,7 @@ def layout():
             dbc.Col([html.H5("Sie sind bereits eingelogt.")]),
             dcc.Interval(id="redirect_login", disabled=False, interval=1 * 1000, n_intervals=0)
         ])
+
     # Show user login window
     else:
         login_window = dbc.Row([
@@ -66,6 +71,7 @@ def verify_login_try(n, username, pw):
     user = User.query.filter_by(username=username).first()
     if user:
         if pw is not None:
+            # Verify password with hashed version in database
             if user.check_pw(pw):
                 login_user(user)
                 # Change colors of input boxes, display message and start redirection timer
